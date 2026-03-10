@@ -40,6 +40,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test suite** — 52 tests across 5 test files covering config schema, config loading, project detection, evidence collection, and all CLI commands.
 - **Type safety** — Full mypy strict mode compliance across all 21 source files.
 - **Code quality** — ruff linting with zero errors.
+- **Documentation** (`docs/`) — 10 documents in Spanish: architecture, CLI guide, configuration guide, data models, security, compliance, best practices, development guide, FAQ, and quick start.
+
+#### QA Hardening — Phase 1
+
+- **Bug fixes** — 6 issues found and fixed during QA review:
+  - `confidence_threshold` now validated to [0.0, 1.0] range (was accepting any float).
+  - `_detect_git` exception handling broadened from `FileNotFoundError` to `OSError` (catches `PermissionError`).
+  - `_parse_architect_config` narrowed from `except Exception` to specific exception types.
+  - `has_dry_run`/`has_rollback` now conditional on architect config data (was unconditionally `True`).
+  - Project name detection now prioritizes `pyproject.toml` over `package.json` when both exist.
+  - Changelog entry count now only counts `## ` headers, ignoring `###` and deeper.
+- **61 new QA tests** (`tests/test_qa_edge_cases.py`) covering:
+  - Config validation: threshold bounds, unicode, empty YAML, extra fields, null values.
+  - Core models: all enum memberships, dataclass instantiation, defaults, serialization.
+  - ProjectDetector: Rust/Java detection, malformed configs, dual config files, all security tools.
+  - EvidenceCollector: missing modules, malformed YAML/SARIF, non-vigil SARIF filtering, header counting.
+  - CLI integration: connect persists to disk, init→status flow, invalid choices, verbose flag.
+  - Import safety: no circular imports across all modules.
+
+### Changed
+
+- Test suite expanded from 52 to 113 tests (52 original + 61 QA).
 
 ## [0.1.0] — Unreleased
 

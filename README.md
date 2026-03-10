@@ -43,7 +43,7 @@ pip install licit-ai-cli
 Or from source:
 
 ```bash
-git clone https://github.com/your-org/licit-cli.git
+git clone https://github.com/Diego303/licit-cli.git
 cd licit-cli
 pip install -e ".[dev]"
 ```
@@ -208,13 +208,28 @@ src/licit/
 └── logging/            # structlog configuration
 ```
 
+## Documentation
+
+Full documentation (in Spanish) is available in the [`docs/`](docs/) directory:
+
+- [Quick start](docs/inicio-rapido.md) — Get licit running in 5 minutes
+- [Architecture](docs/arquitectura.md) — System design, modules, and phases
+- [CLI guide](docs/guia-cli.md) — Complete command reference
+- [Configuration](docs/configuracion.md) — All `.licit.yaml` fields
+- [Data models](docs/modelos.md) — Enums, dataclasses, and Pydantic schemas
+- [Security](docs/seguridad.md) — Threat model, signing, data protection
+- [Compliance](docs/compliance.md) — EU AI Act and OWASP framework details
+- [Best practices](docs/buenas-practicas.md) — Integration recommendations
+- [Development](docs/desarrollo.md) — Contributing guide
+- [FAQ](docs/faq.md) — Troubleshooting and common questions
+
 ## Development
 
 ```bash
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests
+# Run tests (113 tests)
 pytest tests/ -q
 
 # Lint

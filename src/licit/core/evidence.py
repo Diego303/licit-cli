@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import structlog
+import yaml
 
 from licit.core.project import ProjectContext
 
@@ -112,7 +113,10 @@ class EvidenceCollector:
         changelog = licit_dir / "changelog.md"
         if changelog.exists():
             ev.has_changelog = True
-            ev.changelog_entry_count = changelog.read_text(encoding="utf-8").count("##")
+            content = changelog.read_text(encoding="utf-8")
+            ev.changelog_entry_count = sum(
+                1 for line in content.splitlines() if line.startswith("## ")
+            )
 
         # FRIA
         fria_data = licit_dir / "fria-data.json"
@@ -138,8 +142,6 @@ class EvidenceCollector:
     def _parse_architect_config(self, ev: EvidenceBundle) -> None:
         """Extract evidence from architect config YAML."""
         try:
-            import yaml
-
             config_path = self.root / (self.context.architect_config_path or "")
             if not config_path.exists():
                 return
@@ -166,10 +168,12 @@ class EvidenceCollector:
             if isinstance(costs, dict) and costs.get("budget_usd"):
                 ev.has_budget_limits = True
 
-            ev.has_dry_run = True
-            ev.has_rollback = True
+            if data.get("dry_run") is not False:
+                ev.has_dry_run = True
+            if data.get("rollback") is not False:
+                ev.has_rollback = True
 
-        except Exception as exc:
+        except (yaml.YAMLError, OSError, KeyError, TypeError, ValueError) as exc:
             logger.debug("architect_config_parse_error", error=str(exc))
 
     def _collect_architect_evidence(self, ev: EvidenceBundle) -> None:

@@ -9,7 +9,7 @@
 
 | Fase | Nombre | Estado | Tests | Archivos |
 |------|--------|--------|-------|----------|
-| **Phase 1** | Foundation | **COMPLETADA** | 52/52 | 22 source + 7 test |
+| **Phase 1** | Foundation | **COMPLETADA + QA** | 113/113 | 22 source + 8 test |
 | Phase 2 | Provenance | Pendiente | — | — |
 | Phase 3 | Changelog | Pendiente | — | — |
 | Phase 4 | EU AI Act | Pendiente | — | — |
@@ -20,7 +20,7 @@
 **Verificación de calidad:**
 - `ruff check src/licit/` — Sin errores
 - `mypy src/licit/ --strict` — Sin errores (0 issues en 21 archivos)
-- `pytest tests/ -q` — 52 tests, todos pasan
+- `pytest tests/ -q` — 113 tests, todos pasan (52 originales + 61 QA)
 
 ---
 
@@ -204,7 +204,7 @@ Configuración de structlog con:
 - `cache_logger_on_first_use=False` — Permite reconfigurar entre tests
 - Procesadores: contextvars, log level, stack info, exc info, timestamps, ConsoleRenderer
 
-### Tests (52 total)
+### Tests (113 total)
 
 | Archivo | # Tests | Qué cubre |
 |---------|---------|-----------|
@@ -213,6 +213,7 @@ Configuración de structlog con:
 | `tests/test_config/test_loader.py` | 9 | Load sin archivo, load explícito, load desde cwd, YAML inválido, path inexistente, save y roundtrip |
 | `tests/test_core/test_project.py` | 12 | Detección Python/JS/Go, agent configs, architect, CI/CD, security tools, git info, proyecto vacío |
 | `tests/test_core/test_evidence.py` | 11 | Bundle vacío, FRIA/Annex IV/changelog, GitHub Actions → review gate, architect guardrails, SARIF parsing |
+| `tests/test_qa_edge_cases.py` | 61 | **QA hardening** — ver sección de QA más abajo |
 | `tests/conftest.py` | — | Fixtures: `tmp_project`, `git_project`, `make_context()`, `make_evidence()` + structlog CRITICAL |
 
 ### Decisiones Técnicas
@@ -224,6 +225,62 @@ Configuración de structlog con:
 3. **structlog con `WriteLoggerFactory`** en lugar de `PrintLoggerFactory(file=sys.stderr)` — El CliRunner de Click captura/cierra stderr durante tests, causando `ValueError: I/O operation on closed file`. WriteLoggerFactory escribe a stdout por defecto y es más robusto.
 
 4. **Tests suprimen structlog a CRITICAL** en conftest.py — Evita ruido en la salida de tests sin requerir mocks complejos.
+
+### QA Hardening (post-implementación)
+
+Se realizó una revisión de QA completa sobre toda la Phase 1: verificación estática
+(`ruff --select ALL`, `mypy --strict`), análisis de código, revisión de tests, y
+escritura de tests adicionales de edge cases.
+
+#### Bugs encontrados y corregidos
+
+| # | Severidad | Archivo | Problema | Corrección |
+|---|-----------|---------|----------|------------|
+| 1 | **Alta** | `config/schema.py` | `confidence_threshold` aceptaba cualquier float (ej: 5.0, -1.0) | Añadido `ge=0.0, le=1.0` en el `Field()` de Pydantic |
+| 2 | **Media** | `core/project.py` | `_detect_git` solo capturaba `FileNotFoundError`, no `PermissionError` | Cambiado a `except (TimeoutExpired, OSError)` — OSError cubre ambos |
+| 3 | **Media** | `core/evidence.py` | `_parse_architect_config` usaba `except Exception` genérico | Narrowed a `(YAMLError, OSError, KeyError, TypeError, ValueError)` |
+| 4 | **Media** | `core/evidence.py` | `has_dry_run` y `has_rollback` se ponían `True` incondicionalmente cuando existía architect config | Ahora condicional: solo `True` si no están explícitamente deshabilitados en el config |
+| 5 | **Baja** | `core/project.py` | Si existían `pyproject.toml` y `package.json`, el nombre de `package.json` sobreescribía al de `pyproject.toml` | `package.json` solo se usa para nombre si `pyproject.toml` no existe |
+| 6 | **Baja** | `core/evidence.py` | `.count("##")` contaba headers `###`, `####` como entradas de changelog | Cambiado a contar solo líneas que empiezan con `"## "` |
+
+#### Tests de QA añadidos (61 nuevos)
+
+**Archivo:** `tests/test_qa_edge_cases.py`
+
+| Clase | # Tests | Cobertura |
+|-------|---------|-----------|
+| `TestConfigValidation` | 10 | Threshold fuera de rango, boundary 0/1, campos extra ignorados, YAML vacío, null, unicode, roundtrip unicode, threshold inválido en YAML |
+| `TestCoreModels` | 11 | Valores de enums, membership, enum inválido, ProvenanceRecord mínimo y completo, ControlResult defaults, GapItem defaults, ComplianceSummary, ConfigChange |
+| `TestProjectDetectorEdgeCases` | 14 | Prioridad pyproject>package.json, Rust, Java Maven/Gradle, pyproject malformado, package.json malformado, múltiples CI/CD, pyproject sin [project], package.json sin name, SARIF, CodeQL, Snyk, Copilot, múltiples agentes |
+| `TestEvidenceCollectorEdgeCases` | 12 | provenance.jsonl sin módulo, architect config malformado, config no-dict, guardrails vacíos, SARIF non-vigil ignorado, SARIF malformado, SARIF inexistente, h3 no contados, directorio .licit vacío, dry_run/rollback defaults, dry_run explícitamente false |
+| `TestCLIEdgeCases` | 7 | Connect persiste en YAML, disable persiste, status con config, init→status integración, framework inválido, help de todos los comandos, flag verbose |
+| `TestImportSafety` | 8 | Import de cada módulo sin circular imports, versión existe |
+
+#### Documentación técnica
+
+Se creó la carpeta `docs/` con 10 documentos en español:
+
+| Documento | Contenido |
+|-----------|-----------|
+| `docs/README.md` | Índice principal |
+| `docs/inicio-rapido.md` | Guía de 5 minutos |
+| `docs/arquitectura.md` | Stack, flujo de datos, módulos, fases, dependencias |
+| `docs/guia-cli.md` | Los 10 comandos con opciones y ejemplos |
+| `docs/configuracion.md` | Todos los campos de `.licit.yaml` |
+| `docs/modelos.md` | Enums, dataclasses, EvidenceBundle, jerarquía Pydantic |
+| `docs/seguridad.md` | Modelo de amenazas, HMAC, parsing seguro |
+| `docs/compliance.md` | EU AI Act (9 artículos), OWASP (10 riesgos), CI/CD gate |
+| `docs/buenas-practicas.md` | 18 recomendaciones + antipatrones |
+| `docs/desarrollo.md` | Setup, convenciones, testing, flujo de contribución |
+| `docs/faq.md` | Instalación, problemas conocidos, glosario |
+
+#### Riesgos residuales identificados
+
+| Riesgo | Impacto | Nota |
+|--------|---------|------|
+| `rglob("*.sarif")` puede ser lento en proyectos con `node_modules` | Bajo | Considerar excluir dirs en futuras fases |
+| CLI tests usan `os.chdir()` (no thread-safe) | Bajo | OK para ejecución secuencial; migrar si se usa `pytest-xdist` |
+| `has_human_review_gate = True` asume que GitHub Actions = PR reviews | Bajo | Refinar en Phase 4 con análisis real de workflow |
 
 ---
 

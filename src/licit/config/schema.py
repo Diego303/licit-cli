@@ -19,6 +19,8 @@ class ProvenanceConfig(BaseModel):
     sign_key_path: str | None = None
     confidence_threshold: float = Field(
         default=0.6,
+        ge=0.0,
+        le=1.0,
         description="Minimum confidence to count as AI-generated",
     )
     store_path: str = ".licit/provenance.jsonl"

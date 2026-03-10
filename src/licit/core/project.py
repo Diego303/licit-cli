@@ -138,7 +138,7 @@ class ProjectDetector:
                 logger.debug("pyproject_parse_error", error=str(exc))
 
         pkg = root / "package.json"
-        if pkg.exists():
+        if pkg.exists() and not pyproject.exists():
             try:
                 data = json.loads(pkg.read_text(encoding="utf-8"))
                 name = data.get("name")
@@ -303,5 +303,5 @@ class ProjectDetector:
             if r.returncode == 0 and r.stdout.strip():
                 ctx.total_contributors = len(r.stdout.strip().splitlines())
 
-        except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        except (subprocess.TimeoutExpired, OSError) as exc:
             logger.debug("git_detection_failed", error=str(exc))
