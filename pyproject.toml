@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "licit-ai-cli"
+version = "0.1.0"
+description = "Regulatory compliance for AI-powered development teams"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.12"
+keywords = ["compliance", "ai", "eu-ai-act", "owasp", "provenance", "audit"]
+
+dependencies = [
+    "click>=8.1",
+    "pydantic>=2.0",
+    "structlog>=24.1",
+    "pyyaml>=6.0",
+    "jinja2>=3.1",
+    "cryptography>=42.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "mypy>=1.9",
+]
+
+[project.scripts]
+licit = "licit.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/licit"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["licit"]
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
