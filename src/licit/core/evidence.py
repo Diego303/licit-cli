@@ -101,13 +101,10 @@ class EvidenceCollector:
         provenance_store = licit_dir / "provenance.jsonl"
         if provenance_store.exists():
             ev.has_provenance = True
-            try:
-                from licit.provenance.store import ProvenanceStore  # type: ignore[import-not-found]
+            from licit.provenance.store import ProvenanceStore
 
-                store = ProvenanceStore(str(provenance_store))
-                ev.provenance_stats = store.get_stats()
-            except ImportError:
-                logger.debug("provenance_module_not_available")
+            store = ProvenanceStore(str(provenance_store))
+            ev.provenance_stats = store.get_stats()
 
         # Changelog
         changelog = licit_dir / "changelog.md"
@@ -153,9 +150,9 @@ class EvidenceCollector:
             if isinstance(guardrails, dict) and guardrails:
                 ev.has_guardrails = True
                 ev.guardrail_count = (
-                    len(guardrails.get("protected_files", []))
-                    + len(guardrails.get("blocked_commands", []))
-                    + len(guardrails.get("code_rules", []))
+                    len(guardrails.get("protected_files") or [])
+                    + len(guardrails.get("blocked_commands") or [])
+                    + len(guardrails.get("code_rules") or [])
                 )
                 quality_gates = guardrails.get("quality_gates")
                 if quality_gates:

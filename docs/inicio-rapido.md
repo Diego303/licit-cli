@@ -15,7 +15,7 @@ pip install licit-ai-cli
 Verifica:
 ```bash
 licit --version
-# licit, version 0.1.0
+# licit, version 0.2.0
 ```
 
 ---
@@ -94,8 +94,32 @@ Añade a `.gitignore` los datos sensibles:
 ```gitignore
 .licit/provenance.jsonl
 .licit/fria-data.json
-.licit/signing-key
+.licit/.signing-key
 ```
+
+---
+
+## 5. Rastrear proveniencia del código
+
+```bash
+licit trace                      # Analizar todo el historial git
+licit trace --since 2026-01-01   # Desde una fecha específica
+licit trace --stats              # Mostrar estadísticas
+licit trace --report             # Generar reporte Markdown
+```
+
+Ejemplo de salida:
+```
+  Analyzing git history...
+  Records: 45 files analyzed
+  AI-generated: 18 (40.0%)
+  Human-written: 22 (48.9%)
+  Mixed: 5 (11.1%)
+
+  Stored in .licit/provenance.jsonl
+```
+
+El comando `trace` analiza cada commit con 6 heurísticas (autor, mensaje, volumen, co-autores, patrones de archivos, hora) y clasifica cada archivo como `ai`, `human` o `mixed`.
 
 ---
 
@@ -104,9 +128,6 @@ Añade a `.gitignore` los datos sensibles:
 Una vez completadas las fases futuras de licit, podrás:
 
 ```bash
-# Rastrear proveniencia del código (IA vs humano)
-licit trace --stats
-
 # Generar changelog de configs de agentes
 licit changelog
 

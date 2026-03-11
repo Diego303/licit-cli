@@ -35,7 +35,7 @@ python -m licit [opciones] <comando> [argumentos]
 
 ```bash
 licit --version
-# licit, version 0.1.0
+# licit, version 0.2.0
 
 licit --verbose status
 # Muestra logs de debug durante la ejecución
@@ -175,7 +175,7 @@ $ licit connect architect --disable
 
 Rastrea la proveniencia del código — identifica qué fue escrito por IA y qué por humanos.
 
-> **Estado**: Registrado en CLI. Funcional a partir de Fase 2.
+> **Estado**: **Funcional** (Fase 2 completada).
 
 ```bash
 licit trace [--since DATE|TAG] [--report] [--stats]
@@ -186,20 +186,50 @@ licit trace [--since DATE|TAG] [--report] [--stats]
 | Opción | Descripción |
 |---|---|
 | `--since` | Analiza commits desde una fecha (YYYY-MM-DD) o tag de git |
-| `--report` | Genera archivo de reporte de proveniencia |
+| `--report` | Genera archivo de reporte de proveniencia en `.licit/reports/provenance.md` |
 | `--stats` | Muestra estadísticas en terminal |
 
-**Ejemplo futuro:**
+**Qué hace:**
+1. Ejecuta `GitAnalyzer` para analizar commits con 6 heurísticas (autor, mensaje, volumen, co-autores, patrones de archivos, hora).
+2. Opcionalmente lee logs de sesión de agentes (Claude Code).
+3. Clasifica cada archivo como `ai` (score >= 0.7), `mixed` (>= 0.5) o `human` (< 0.5).
+4. Almacena resultados en `.licit/provenance.jsonl` (append-only).
+5. Si `sign: true`, firma cada registro con HMAC-SHA256.
+
+**Ejemplo:**
 ```bash
 $ licit trace --since 2026-01-01 --stats
 
-Provenance Analysis (since 2026-01-01):
-  Total files analyzed: 87
-  AI-authored: 34 (39.1%)
-  Human-authored: 41 (47.1%)
-  Mixed: 12 (13.8%)
-  Confidence: 0.82 avg
+  Analyzing git history...
+  Records: 45 files analyzed
+  AI-generated: 18 (40.0%)
+  Human-written: 22 (48.9%)
+  Mixed: 5 (11.1%)
+
+  AI tools detected: claude-code (15), cursor (3)
+  Models detected: claude-sonnet-4 (12), claude-opus-4 (3), gpt-4o (3)
+
+  Stored in .licit/provenance.jsonl
 ```
+
+**Ejemplo con reporte:**
+```bash
+$ licit trace --report
+# Genera .licit/reports/provenance.md con tabla detallada por archivo
+```
+
+**Heurísticas utilizadas:**
+
+| # | Heurística | Peso | Qué detecta |
+|---|---|---|---|
+| H1 | Author pattern | 3.0 | Nombres de autor AI (claude, copilot, cursor, bot, etc.) |
+| H2 | Message pattern | 1.5 | Patrones de commit (conventional commits, "implement", `[ai]`) |
+| H3 | Bulk changes | 2.0 | Cambios masivos (>20 archivos + >500 líneas) |
+| H4 | Co-author | 3.0 | `Co-authored-by:` con keywords AI |
+| H5 | File patterns | 1.0 | Todos los archivos son test files |
+| H6 | Time pattern | 0.5 | Commits entre 1am-5am |
+
+Solo las heurísticas que producen señal (score > 0) contribuyen al promedio ponderado.
 
 ---
 
@@ -363,7 +393,7 @@ licit verify [--framework {eu-ai-act|owasp|all}]
 | `init` | 1 | Funcional | Inicializa licit en el proyecto |
 | `status` | 1 | Funcional | Muestra estado y fuentes conectadas |
 | `connect` | 1 | Funcional | Configura conectores |
-| `trace` | 2 | Skeleton | Trazabilidad de proveniencia |
+| `trace` | 2 | **Funcional** | Trazabilidad de proveniencia |
 | `changelog` | 3 | Skeleton | Changelog de configs de agentes |
 | `fria` | 4 | Skeleton | FRIA (EU AI Act Art. 27) |
 | `annex-iv` | 4 | Skeleton | Documentación técnica Anexo IV |

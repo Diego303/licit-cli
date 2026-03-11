@@ -30,7 +30,7 @@ python3.12 -m pip install -e ".[dev]"
 
 # Verificar la instalación
 licit --version
-# licit, version 0.1.0
+# licit, version 0.2.0
 ```
 
 ### Dependencias de desarrollo
@@ -73,7 +73,7 @@ python3.12 -m licit status                  # Probar status
 
 ```
 src/licit/
-├── __init__.py         # __version__ = "0.1.0"
+├── __init__.py         # __version__ = "0.2.0"
 ├── __main__.py         # Entry point: python -m licit
 ├── py.typed            # PEP 561 marker
 ├── cli.py              # Todos los comandos Click
@@ -87,7 +87,16 @@ src/licit/
 │   └── evidence.py     # EvidenceCollector + EvidenceBundle
 ├── logging/
 │   └── setup.py        # setup_logging(verbose)
-├── provenance/         # Fase 2
+├── provenance/         # Fase 2 (COMPLETADA)
+│   ├── heuristics.py   # 6 heurísticas de detección AI
+│   ├── git_analyzer.py # Análisis de git history
+│   ├── store.py        # Store JSONL append-only
+│   ├── attestation.py  # HMAC-SHA256 + Merkle tree
+│   ├── tracker.py      # Orquestador de provenance
+│   ├── report.py       # Generador de reportes Markdown
+│   └── session_readers/
+│       ├── base.py     # Protocol SessionReader
+│       └── claude_code.py  # Reader Claude Code
 ├── changelog/          # Fase 3
 ├── frameworks/         # Fases 4-5
 ├── connectors/         # Fase 7
@@ -152,20 +161,22 @@ logger.info(f"Config loaded from {config_path} for framework eu-ai-act")
 
 ### 5. Lazy imports para módulos futuros
 
-Cuando un comando necesita un módulo que aún no existe:
+Cuando un comando necesita un módulo que aún no existe, usa lazy imports con `type: ignore`:
 
 ```python
 @main.command()
-def trace() -> None:
-    """Track code provenance."""
+def changelog() -> None:
+    """Generate agent config changelog."""
     try:
-        from licit.provenance.tracker import (  # type: ignore[import-not-found]
-            ProvenanceTracker,
+        from licit.changelog.renderer import (  # type: ignore[import-not-found]
+            ChangelogRenderer,
         )
     except ImportError:
-        click.echo("Provenance tracking not yet implemented.")
+        click.echo("Changelog not yet implemented.")
         raise SystemExit(1)
 ```
+
+> **Nota**: Los módulos de Fase 2 (provenance) ya están implementados y se importan directamente sin `type: ignore`.
 
 ### 6. Ruff y mypy
 
@@ -182,15 +193,27 @@ def trace() -> None:
 
 ```
 tests/
-├── conftest.py              # Fixtures compartidos
-├── test_cli.py              # 13 tests
+├── conftest.py                     # Fixtures compartidos
+├── test_cli.py                     # 13 tests
+├── test_qa_edge_cases.py           # 61 tests (QA Phase 1)
 ├── test_config/
-│   ├── test_schema.py       # 7 tests
-│   └── test_loader.py       # 9 tests
-└── test_core/
-    ├── test_project.py      # 12 tests
-    └── test_evidence.py     # 11 tests
+│   ├── test_schema.py              # 7 tests
+│   └── test_loader.py              # 9 tests
+├── test_core/
+│   ├── test_project.py             # 12 tests
+│   └── test_evidence.py            # 11 tests
+└── test_provenance/
+    ├── test_heuristics.py          # 23 tests
+    ├── test_git_analyzer.py        # 15 tests
+    ├── test_store.py               # 15 tests
+    ├── test_attestation.py         # 13 tests
+    ├── test_tracker.py             # 7 tests
+    ├── test_session_reader.py      # 13 tests
+    ├── test_qa_edge_cases.py       # 81 tests (QA Phase 2)
+    └── fixtures/                   # Datos de test
 ```
+
+**Total: 280 tests**
 
 ### Fixtures disponibles (conftest.py)
 
@@ -320,7 +343,7 @@ class LicitConfig(BaseModel):
    - Tests en tests/
 
 3. Verificar
-   python3.12 -m pytest tests/ -q      # 52+ tests passing
+   python3.12 -m pytest tests/ -q      # 280+ tests passing
    python3.12 -m ruff check src/licit/  # All checks passed
    python3.12 -m mypy src/licit/ --strict  # No issues found
 
@@ -331,15 +354,16 @@ class LicitConfig(BaseModel):
 
 ---
 
-## Fases de implementación pendientes
+## Fases de implementación
 
-| Fase | Módulos a implementar | Directorio |
-|---|---|---|
-| 2 | `git_analyzer.py`, `heuristics.py`, `store.py`, `tracker.py`, `attestation.py`, `session_readers/` | `provenance/` |
-| 3 | `watcher.py`, `differ.py`, `classifier.py`, `renderer.py` | `changelog/` |
-| 4 | `requirements.py`, `evaluator.py`, `fria.py`, `annex_iv.py`, `templates/` | `frameworks/eu_ai_act/` |
-| 5 | `requirements.py`, `evaluator.py`, `templates/` | `frameworks/owasp_agentic/` |
-| 6 | `unified.py`, `gap_analyzer.py`, `markdown.py`, `json_fmt.py`, `html.py` | `reports/` |
-| 7 | `base.py`, `architect.py`, `vigil.py` | `connectors/` |
+| Fase | Módulos | Directorio | Estado |
+|---|---|---|---|
+| 1 | `cli.py`, `config/`, `core/`, `logging/` | múltiples | **COMPLETADA** |
+| 2 | `heuristics.py`, `git_analyzer.py`, `store.py`, `attestation.py`, `tracker.py`, `report.py`, `session_readers/` | `provenance/` | **COMPLETADA** |
+| 3 | `watcher.py`, `differ.py`, `classifier.py`, `renderer.py` | `changelog/` | Pendiente |
+| 4 | `requirements.py`, `evaluator.py`, `fria.py`, `annex_iv.py`, `templates/` | `frameworks/eu_ai_act/` | Pendiente |
+| 5 | `requirements.py`, `evaluator.py`, `templates/` | `frameworks/owasp_agentic/` | Pendiente |
+| 6 | `unified.py`, `gap_analyzer.py`, `markdown.py`, `json_fmt.py`, `html.py` | `reports/` | Pendiente |
+| 7 | `base.py`, `architect.py`, `vigil.py` | `connectors/` | Pendiente |
 
 Cada fase tiene su sección detallada en el [plan de implementación](../Licit_V0_Plan_Implementacion.md).

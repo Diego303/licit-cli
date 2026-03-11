@@ -61,7 +61,13 @@ frameworks:
 
 ## Trazabilidad de provenance
 
-### 5. Usa múltiples métodos de detección
+### 5. Ejecuta `trace` regularmente
+
+Ejecuta `licit trace` después de cada sprint o release para mantener la trazabilidad actualizada:
+
+```bash
+licit trace --since 2026-03-01 --stats --report
+```
 
 Combina heurísticas git con logs de sesión para mayor precisión:
 

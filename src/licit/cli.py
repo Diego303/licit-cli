@@ -124,10 +124,10 @@ def trace(ctx: click.Context, since: str | None, gen_report: bool, stats: bool) 
     config = load_config(ctx.obj.get("config_path"))
 
     if stats:
-        from licit.provenance.store import ProvenanceStore  # type: ignore[import-not-found]
+        from licit.provenance.store import ProvenanceStore
 
-        store: Any = ProvenanceStore(config.provenance.store_path)
-        s: dict[str, Any] = store.get_stats()
+        store = ProvenanceStore(config.provenance.store_path)
+        s = store.get_stats()
         click.echo("\n  Provenance Statistics")
         click.echo(f"  {'─' * 40}")
         click.echo(f"  Total files tracked: {s['total_files']}")
@@ -138,11 +138,11 @@ def trace(ctx: click.Context, since: str | None, gen_report: bool, stats: bool) 
 
     click.echo("  Analyzing git history for AI provenance...")
 
-    from licit.provenance.tracker import ProvenanceTracker  # type: ignore[import-not-found]
+    from licit.provenance.tracker import ProvenanceTracker
 
     root = str(Path.cwd())
-    tracker: Any = ProvenanceTracker(root, config.provenance)
-    records: list[Any] = tracker.analyze(since=since)
+    tracker = ProvenanceTracker(root, config.provenance)
+    records = tracker.analyze(since=since)
 
     ai_count = sum(1 for r in records if r.source == "ai")
     human_count = sum(1 for r in records if r.source == "human")
@@ -151,9 +151,7 @@ def trace(ctx: click.Context, since: str | None, gen_report: bool, stats: bool) 
     click.echo(f"  Human-written: {human_count} files")
 
     if gen_report:
-        from licit.provenance.report import (  # type: ignore[import-not-found]
-            generate_provenance_report,
-        )
+        from licit.provenance.report import generate_provenance_report
 
         report_path = ".licit/provenance-report.md"
         generate_provenance_report(records, report_path)

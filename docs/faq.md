@@ -83,13 +83,13 @@ $ licit --verbose status
 
 ## Comandos
 
-### `licit trace` / `licit changelog` / `licit fria` no funcionan
+### `licit changelog` / `licit fria` no funcionan
 
-Estos comandos están **registrados** en el CLI pero su implementación completa es parte de fases futuras:
+Algunos comandos están **registrados** en el CLI pero su implementación completa es parte de fases futuras:
 
 | Comando | Fase | Estado actual |
 |---|---|---|
-| `trace` | 2 | Skeleton (muestra error informativo) |
+| `trace` | 2 | **Funcional** (v0.2.0) |
 | `changelog` | 3 | Skeleton |
 | `fria` | 4 | Skeleton |
 | `annex-iv` | 4 | Skeleton |
@@ -97,7 +97,7 @@ Estos comandos están **registrados** en el CLI pero su implementación completa
 | `gaps` | 6 | Skeleton |
 | `verify` | 6 | Skeleton |
 
-Los comandos funcionales en v0.1.0 son: `init`, `status`, `connect`.
+Los comandos funcionales en v0.2.0 son: `init`, `status`, `connect`, `trace`.
 
 ### `licit init` no detecta mi lenguaje/framework
 
@@ -125,7 +125,12 @@ Si tu lenguaje o framework no está soportado, abre un issue.
 
 ### `licit status` muestra "not collected" para provenance
 
-Es normal en v0.1.0. La recopilación de provenance se implementa en Fase 2. Ejecuta `licit trace` una vez disponible.
+Ejecuta `licit trace` para analizar el historial git y generar datos de proveniencia. Después de ejecutar trace, `licit status` mostrará las estadísticas de provenance.
+
+```bash
+licit trace --stats     # Analizar y mostrar estadísticas
+licit status            # Ahora muestra datos de provenance
+```
 
 ---
 
@@ -149,15 +154,17 @@ El error más común es `ValueError: I/O operation on closed file` cuando Click'
 
 ### mypy muestra errores en imports de módulos futuros
 
-Los imports de módulos de fases futuras (como `licit.provenance.store`) usan `# type: ignore[import-not-found]`:
+Los imports de módulos de fases futuras (como `licit.changelog.renderer`) usan `# type: ignore[import-not-found]`:
 
 ```python
-from licit.provenance.store import (  # type: ignore[import-not-found]
-    ProvenanceStore,
+from licit.changelog.renderer import (  # type: ignore[import-not-found]
+    ChangelogRenderer,
 )
 ```
 
 El comentario `type: ignore` debe ir en la línea del `from`, no en las líneas de los nombres importados. Si ruff reformatea el import a multilínea, verifica que el comentario quede en la línea correcta.
+
+> **Nota**: Los módulos de provenance (Fase 2) ya están implementados y se importan sin `type: ignore`.
 
 ### ruff reporta UP042 en mis enums
 
@@ -235,13 +242,14 @@ Los archivos que **no** debes commitear:
 
 ---
 
-## Problemas conocidos (v0.1.0)
+## Problemas conocidos (v0.2.0)
 
 | Problema | Estado | Workaround |
 |---|---|---|
-| Comandos de fases 2-7 muestran error | Esperado | Usar `init`, `status`, `connect` |
+| Comandos de fases 3-7 muestran error | Esperado | Usar `init`, `status`, `connect`, `trace` |
 | No detecta frameworks Go/Rust/Java | Limitación | Detecta el lenguaje pero no frameworks específicos |
-| Provenance no recopilada | Esperado | Implementación en Fase 2 |
+| Heurísticas de provenance pueden dar falsos positivos | Limitación | Ajustar `confidence_threshold` en config |
+| Session reader solo soporta Claude Code | Limitación | Más readers en fases futuras |
 | FRIA no interactivo | Esperado | Implementación en Fase 4 |
 | Solo formato Markdown para reportes | Esperado | JSON/HTML en Fase 6 |
 
