@@ -51,7 +51,7 @@ chmod 600 ~/.licit/signing-key
 
 ### Attestation (Merkle tree)
 
-En fases futuras, licit implementará un Merkle tree sobre el provenance store para detectar manipulación o eliminación de registros:
+licit implementa un Merkle tree sobre los registros de provenance para detectar manipulación:
 
 ```
          root_hash
@@ -64,6 +64,38 @@ En fases futuras, licit implementará un Merkle tree sobre el provenance store p
 ```
 
 Cualquier modificación de un registro invalida la cadena de hashes desde ese registro hasta la raíz.
+
+**Implementación**:
+- Cada record se serializa como JSON canónico (`sort_keys=True, default=str`)
+- Se calcula SHA256 de cada record → hojas del árbol
+- Pares de hashes se concatenan y re-hashean hasta obtener la raíz
+- Registros impares: el último se duplica para completar el par
+- La verificación individual usa `hmac.compare_digest` (timing-safe)
+
+```python
+from licit.provenance.attestation import ProvenanceAttestor
+
+attestor = ProvenanceAttestor()  # Auto-genera key en .licit/.signing-key
+
+# Firmar un registro individual
+sig = attestor.sign_record({"file": "app.py", "source": "ai"})
+
+# Verificar integridad
+assert attestor.verify_record({"file": "app.py", "source": "ai"}, sig)
+
+# Firmar batch con Merkle tree
+root = attestor.sign_batch([record1, record2, record3])
+```
+
+### Key management
+
+La clave de firmado se resuelve en este orden:
+
+1. **Path explícito** (`sign_key_path` en config)
+2. **Fallback local** (`.licit/.signing-key` en el proyecto)
+3. **Auto-generación** (32 bytes aleatorios con `os.urandom(32)`)
+
+Todos los accesos a filesystem están protegidos con `try/except OSError`.
 
 ---
 
@@ -162,7 +194,8 @@ licit ejecuta comandos git mediante `subprocess.run()` con las siguientes protec
 - `capture_output=True` — stdout/stderr capturados, no mostrados directamente.
 - `text=True` — Decodificación UTF-8 automática.
 - Sin `shell=True` — Los argumentos se pasan como lista, no como string, previniendo inyección de comandos.
-- Timeout implícito en operaciones de red (futuro).
+- `timeout=30` — Timeout explícito de 30 segundos en `git log` para evitar bloqueos en repos masivos.
+- `subprocess.TimeoutExpired` capturado — retorna lista vacía sin crashear.
 
 ```python
 # Así ejecuta licit los comandos git

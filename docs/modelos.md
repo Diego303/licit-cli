@@ -194,6 +194,52 @@ class GapItem:
 
 ---
 
+## Modelos de provenance (Fase 2)
+
+### CommitInfo
+
+Commit de git parseado con metadatos para análisis heurístico.
+
+```python
+@dataclass
+class CommitInfo:
+    sha: str                     # Hash SHA completo del commit
+    author: str                  # Nombre del autor
+    author_email: str            # Email del autor
+    date: datetime               # Fecha del commit
+    message: str                 # Asunto del commit
+    files_changed: list[str]     # Archivos modificados
+    insertions: int              # Líneas añadidas
+    deletions: int               # Líneas eliminadas
+    co_authors: list[str] = []   # Co-autores (extraídos del body)
+```
+
+**Uso**: Producido por `GitAnalyzer._parse_git_log()`, consumido por `AICommitHeuristics.score_commit()`.
+
+### HeuristicResult
+
+Resultado de aplicar una heurística individual a un commit.
+
+```python
+@dataclass
+class HeuristicResult:
+    name: str       # Identificador: "author_pattern", "message_pattern", etc.
+    score: float    # Contribución al score final (0.0-1.0)
+    weight: float   # Peso relativo de esta heurística
+    reason: str     # Explicación legible del resultado
+```
+
+**Uso**: Producido internamente por cada heurística, agregado en `score_commit()`.
+
+**Cálculo del score final**: Solo se promedian las heurísticas con score > 0 (señalizantes):
+```python
+signaling = [r for r in results if r.score > 0]
+total_weight = sum(r.weight for r in signaling)
+score = sum(r.score * r.weight for r in signaling) / total_weight
+```
+
+---
+
 ## Modelos de detección
 
 Usados por `ProjectDetector` para describir el contexto del proyecto.

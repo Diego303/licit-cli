@@ -1,0 +1,4 @@
+{"type": "tool_use", "tool": "Write", "params": {"file_path": "src/main.py"}, "timestamp": "2026-01-15T10:30:00+00:00", "model": "claude-sonnet-4"}
+{"type": "tool_use", "tool": "Edit", "params": {"file_path": "src/utils.py"}, "timestamp": "2026-01-15T10:31:00+00:00", "model": "claude-sonnet-4"}
+{"type": "assistant", "content": "I created the files"}
+{"type": "tool_use", "tool": "Bash", "params": {"command": "pytest"}, "timestamp": "2026-01-15T10:32:00+00:00"}

@@ -371,8 +371,8 @@ class TestEvidenceCollectorEdgeCases:
             architect_config_path=architect_config_path,
         )
 
-    def test_provenance_jsonl_exists_without_module(self, tmp_path: Path) -> None:
-        """provenance.jsonl exists but ProvenanceStore module not available."""
+    def test_provenance_jsonl_exists_with_malformed_data(self, tmp_path: Path) -> None:
+        """provenance.jsonl exists with malformed records — stats show zero."""
         licit_dir = tmp_path / ".licit"
         licit_dir.mkdir()
         (licit_dir / "provenance.jsonl").write_text(
@@ -382,7 +382,7 @@ class TestEvidenceCollectorEdgeCases:
         collector = EvidenceCollector(str(tmp_path), ctx)
         ev = collector.collect()
         assert ev.has_provenance is True  # File exists
-        assert ev.provenance_stats == {}  # Module not available
+        assert ev.provenance_stats["total_files"] == 0  # Malformed records skipped
 
     def test_malformed_architect_config(self, tmp_path: Path) -> None:
         architect_dir = tmp_path / ".architect"

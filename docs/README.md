@@ -15,6 +15,7 @@
 | [Compliance](compliance.md) | Marcos regulatorios soportados: EU AI Act y OWASP Agentic Top 10 |
 | [Buenas prácticas](buenas-practicas.md) | Recomendaciones para integrar licit en tu flujo de trabajo |
 | [Desarrollo](desarrollo.md) | Guía para contribuidores: setup, testing, linting, convenciones |
+| [Provenance](provenance.md) | Sistema de trazabilidad: heurísticas, git analyzer, store, attestation, session readers |
 | [FAQ](faq.md) | Preguntas frecuentes y resolución de problemas |
 
 ## Inicio rápido
@@ -30,15 +31,19 @@ licit init
 # Ver estado
 licit status
 
+# Rastrear proveniencia del código
+licit trace --stats
+
 # Generar reporte de compliance
 licit report
 ```
 
 ## Versión actual
 
-- **v0.1.0** — Fase 1 (Foundation) completada
+- **v0.2.0** — Fase 1 (Foundation) + Fase 2 (Provenance) completadas
 - Python 3.12+ requerido
-- 10 comandos CLI registrados, 3 funcionales en esta fase (`init`, `status`, `connect`)
+- 10 comandos CLI registrados, 4 funcionales (`init`, `status`, `connect`, `trace`)
+- 280 tests, mypy strict, ruff clean
 
 ## Licencia
 

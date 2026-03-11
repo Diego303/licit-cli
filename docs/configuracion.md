@@ -102,9 +102,9 @@ Controla cómo licit rastrea el origen del código (IA vs humano).
 
 **Métodos disponibles:**
 
-- `git-infer`: Analiza heurísticas del historial git (patrones de autor, mensaje de commit, volumen de cambios).
-- `session-log`: Lee logs de sesión de agentes IA (Claude Code, Cursor, etc.).
-- `git-ai`: Lee anotaciones de herramientas tipo git-ai.
+- `git-infer`: **(Implementado)** Analiza heurísticas del historial git con 6 señales: patrón de autor, mensaje de commit, volumen de cambios, co-autores, patrones de archivos y hora.
+- `session-log`: **(Implementado)** Lee logs de sesión de agentes IA. Actualmente soporta Claude Code (archivos JSONL en `~/.claude/projects/`). Extensible vía Protocol `SessionReader`.
+- `git-ai`: Lee anotaciones de herramientas tipo git-ai (planificado).
 
 **Ejemplo — Habilitar firmado:**
 ```yaml
@@ -251,12 +251,14 @@ licit almacena toda su data interna en el directorio `.licit/` dentro de la raí
 
 ```
 .licit/
-├── provenance.jsonl    # Store de trazabilidad (JSONL)
+├── .signing-key        # Clave HMAC-SHA256 (auto-generada si sign=true)
+├── provenance.jsonl    # Store de trazabilidad (JSONL append-only)
 ├── changelog.md        # Changelog de configs de agentes
 ├── fria-data.json      # Datos raw del FRIA
 ├── fria-report.md      # Reporte FRIA legible
 ├── annex-iv.md         # Documentación técnica Anexo IV
 └── reports/            # Reportes generados
+    ├── provenance.md          # Reporte de proveniencia
     ├── compliance-report.md
     ├── compliance-report.json
     └── compliance-report.html
