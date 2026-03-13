@@ -9,6 +9,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [0.3.0] — 2026-03-13
+
+### Added
+
+#### Phase 3 — Changelog
+
+- **Config watcher** (`src/licit/changelog/watcher.py`)
+  - `ConfigWatcher` monitors agent config files (CLAUDE.md, .cursorrules, etc.) across git history.
+  - `ConfigSnapshot` dataclass with path, content, commit_sha, timestamp, author.
+  - Uses `git log --format=%H\x01%aI\x01%an --follow` for robust history retrieval, newest-first.
+  - Glob pattern support for watch_files (e.g., `.prompts/**/*.md`).
+  - Size guard: `_MAX_CONTENT_BYTES = 1_048_576` on `git show` output to prevent memory exhaustion from accidentally tracked binary files.
+  - All subprocess calls have explicit timeouts (10s for checks, 30s for log) and `check=False`.
+- **Semantic differ** (`src/licit/changelog/differ.py`)
+  - Format-aware diffing dispatched by file extension: YAML, JSON, Markdown, plain text.
+  - `FieldDiff` dataclass with `field_path`, `old_value`, `new_value`, `is_addition`, `is_removal`.
+  - YAML/JSON: recursive dict diff with `_coerce_to_dict()` that wraps non-dict roots as `{"(root)": data}` instead of silently dropping data.
+  - Markdown: section-aware diff using `_parse_md_sections()` with fenced code block tracking (prevents false heading detection inside ``` blocks).
+  - Plain text: whole-file diff with added/removed line counts.
+- **Change classifier** (`src/licit/changelog/classifier.py`)
+  - Segment-based field matching via `_field_matches()` — `llm.model` matches pattern `model` but `model_config` does NOT (prevents false MAJOR classifications).
+  - `_MAJOR_FIELDS` frozenset: model, llm.model, agent.model, provider, backend, llm.provider.
+  - `_MINOR_FIELDS` frozenset: system_prompt, prompt, instructions, guardrails, rules, quality_gates, tools, allowed_tools, blocked_commands, protected_files.
+  - Removal escalation: removing a MINOR-level field escalates to MAJOR severity.
+  - Markdown section changes default to MINOR; everything else is PATCH.
+  - Timezone-safe: uses `datetime.now(tz=UTC)` as fallback timestamp.
+- **Changelog renderer** (`src/licit/changelog/renderer.py`)
+  - Markdown output: grouped by file, sorted by severity (MAJOR first) then timestamp descending, with summary counts and per-file sections.
+  - JSON output: structured records with `ensure_ascii=False` for unicode support.
+  - Timezone-aware sorting (no naive/aware mixing).
+- **CLI integration** — `licit changelog` now fully functional:
+  - Real imports replacing `# type: ignore[import-not-found]` stubs.
+  - Pipeline: watcher → differ → classifier → renderer.
+  - `--format json` flag for JSON output.
+  - `--since` flag for time-scoped analysis.
+  - File write with `try/except OSError` error handling; output echoed before save attempt.
+- **Test fixtures** — 5 fixture files for reproducible testing:
+  - `claude_md_v1.md` / `claude_md_v2.md` — CLAUDE.md version pairs with section changes.
+  - `cursorrules_v1.txt` — TypeScript rules for plain text diffing.
+  - `architect_config_v1.yaml` / `architect_config_v2.yaml` — YAML configs with model and guardrail changes.
+
+#### QA Hardening — Phase 3
+
+- **Bug fixes** — 7 issues found and fixed during QA review:
+  - **(High)** `classifier.py`: Substring matching (`"model" in field`) caused false MAJOR on `model_config`, `system_model` — replaced with segment-based `_field_matches()`.
+  - **(High)** `differ.py`: Non-dict YAML/JSON roots (e.g., list `[item1, item2]`) silently dropped as `{}` — replaced with `_coerce_to_dict()` wrapping as `{"(root)": data}`.
+  - **(High)** `watcher.py`: `git show` without size limit could load GBs of binary content — added `_MAX_CONTENT_BYTES = 1_048_576` guard.
+  - **(High)** `classifier.py` + `renderer.py`: `datetime.now()` without timezone (DTZ005) created naive timestamps; mixing with git's timezone-aware timestamps in renderer sort could cause `TypeError` — fixed to `datetime.now(tz=UTC)`.
+  - **(Medium)** `cli.py`: `Path.write_text()` could fail with `OSError` on read-only dirs — wrapped in `try/except`, moved `click.echo()` before write.
+  - **(Medium)** `watcher.py`: `_file_has_git_history()` didn't log on timeout or failure — added `logger.debug` for both paths.
+  - **(Low)** `differ.py`: Markdown headings inside fenced code blocks (```) were parsed as real sections — added `in_code_block` tracking in `_parse_md_sections()`.
+- **93 new changelog tests** across 6 test files:
+  - `test_watcher.py` (12) — git history, globs, edge cases, deleted files, deduplication.
+  - `test_differ.py` (19) — YAML/JSON/MD/text diffs, non-dict roots, code blocks, empty content.
+  - `test_classifier.py` (22) — field matching, severities, escalation, truncation, segment matching.
+  - `test_renderer.py` (10) — Markdown/JSON rendering, grouping, sorting, empty changes.
+  - `test_integration.py` (3) — full pipeline markdown, JSON, and empty case.
+  - `test_qa_edge_cases.py` (27) — CLI commands (no-git, real-git, JSON format), unicode handling, timezone mixing, differ/classifier/renderer edge cases, import safety.
+
+### Changed
+
+- Test suite expanded from 280 to 373 tests (280 previous + 93 Phase 3).
+- `licit changelog` command now fully functional (was skeleton in Phase 1).
+- CLI imports for changelog modules changed from lazy `type: ignore` stubs to real imports.
+- `pyproject.toml` version bumped to `0.3.0`.
+
 ## [0.2.0] — 2026-03-11
 
 ### Added

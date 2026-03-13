@@ -130,13 +130,14 @@ ASI-06 (Insufficient Monitoring)
 |---|---|---|
 | Git history | Proveniencia del código, contribuidores, frecuencia | **Funcional** (v0.2.0) |
 | Session logs | Logs de sesión de agentes IA (Claude Code) | **Funcional** (v0.2.0) |
+| Agent config changelog | Cambios en configs de agentes con severidad | **Funcional** (v0.3.0) |
 | Agent configs | Guardrails, modelos usados, reglas de código | **Funcional** (v0.1.0) |
 | CI/CD configs | Human review gates, steps de seguridad | **Funcional** (v0.1.0) |
 | Architect reports | Audit trail, calidad de ejecución | Fase 7 |
 | SARIF files | Hallazgos de seguridad (vulnerabilidades) | Fase 7 |
-| `.licit/` data | FRIA, Annex IV, changelog, provenance store | Parcial (provenance funcional) |
+| `.licit/` data | FRIA, Annex IV, changelog, provenance store | Parcial (provenance + changelog funcionales) |
 
-La evidencia de provenance (`licit trace`) alimenta directamente los artículos de transparencia (Art. 13) y trazabilidad (Art. 10) del EU AI Act, así como los controles de monitoring (ASI-06, ASI-10) del OWASP Agentic Top 10.
+La evidencia de provenance (`licit trace`) alimenta directamente los artículos de transparencia (Art. 13) y trazabilidad (Art. 10) del EU AI Act. El changelog de configs (`licit changelog`) alimenta los artículos de transparencia (Art. 13) y obligaciones de deployers (Art. 26). Ambos alimentan los controles de monitoring (ASI-06, ASI-10) del OWASP Agentic Top 10.
 
 ### Niveles de cumplimiento
 

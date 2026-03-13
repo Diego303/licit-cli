@@ -83,21 +83,21 @@ $ licit --verbose status
 
 ## Comandos
 
-### `licit changelog` / `licit fria` no funcionan
+### `licit fria` / `licit report` no funcionan
 
 Algunos comandos están **registrados** en el CLI pero su implementación completa es parte de fases futuras:
 
 | Comando | Fase | Estado actual |
 |---|---|---|
 | `trace` | 2 | **Funcional** (v0.2.0) |
-| `changelog` | 3 | Skeleton |
+| `changelog` | 3 | **Funcional** (v0.3.0) |
 | `fria` | 4 | Skeleton |
 | `annex-iv` | 4 | Skeleton |
 | `report` | 6 | Skeleton |
 | `gaps` | 6 | Skeleton |
 | `verify` | 6 | Skeleton |
 
-Los comandos funcionales en v0.2.0 son: `init`, `status`, `connect`, `trace`.
+Los comandos funcionales en v0.3.0 son: `init`, `status`, `connect`, `trace`, `changelog`.
 
 ### `licit init` no detecta mi lenguaje/framework
 
@@ -154,17 +154,17 @@ El error más común es `ValueError: I/O operation on closed file` cuando Click'
 
 ### mypy muestra errores en imports de módulos futuros
 
-Los imports de módulos de fases futuras (como `licit.changelog.renderer`) usan `# type: ignore[import-not-found]`:
+Los imports de módulos de fases futuras (como `licit.frameworks.eu_ai_act`) usan `# type: ignore[import-not-found]`:
 
 ```python
-from licit.changelog.renderer import (  # type: ignore[import-not-found]
-    ChangelogRenderer,
+from licit.frameworks.eu_ai_act.fria import (  # type: ignore[import-not-found]
+    FRIAGenerator,
 )
 ```
 
 El comentario `type: ignore` debe ir en la línea del `from`, no en las líneas de los nombres importados. Si ruff reformatea el import a multilínea, verifica que el comentario quede en la línea correcta.
 
-> **Nota**: Los módulos de provenance (Fase 2) ya están implementados y se importan sin `type: ignore`.
+> **Nota**: Los módulos de provenance (Fase 2) y changelog (Fase 3) ya están implementados y se importan sin `type: ignore`.
 
 ### ruff reporta UP042 en mis enums
 
@@ -242,16 +242,17 @@ Los archivos que **no** debes commitear:
 
 ---
 
-## Problemas conocidos (v0.2.0)
+## Problemas conocidos (v0.3.0)
 
 | Problema | Estado | Workaround |
 |---|---|---|
-| Comandos de fases 3-7 muestran error | Esperado | Usar `init`, `status`, `connect`, `trace` |
+| Comandos de fases 4-7 muestran error | Esperado | Usar `init`, `status`, `connect`, `trace`, `changelog` |
 | No detecta frameworks Go/Rust/Java | Limitación | Detecta el lenguaje pero no frameworks específicos |
 | Heurísticas de provenance pueden dar falsos positivos | Limitación | Ajustar `confidence_threshold` en config |
 | Session reader solo soporta Claude Code | Limitación | Más readers en fases futuras |
 | FRIA no interactivo | Esperado | Implementación en Fase 4 |
-| Solo formato Markdown para reportes | Esperado | JSON/HTML en Fase 6 |
+| Solo formato Markdown para reportes de compliance | Esperado | JSON/HTML en Fase 6 |
+| Markdown differ solo soporta headings ATX (`#`) | Limitación | Los headings setext (`===`/`---`) no se detectan |
 
 ---
 

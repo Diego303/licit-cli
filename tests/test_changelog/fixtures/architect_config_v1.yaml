@@ -1,0 +1,21 @@
+llm:
+  model: claude-sonnet-4
+  provider: anthropic
+  max_tokens: 8192
+
+guardrails:
+  protected_files:
+    - "*.env"
+    - "secrets.yaml"
+  blocked_commands:
+    - "rm -rf /"
+    - "DROP TABLE"
+  quality_gates:
+    - tests_pass
+    - lint_clean
+
+costs:
+  budget_usd: 50.0
+  warn_at_usd: 40.0
+
+dry_run: true

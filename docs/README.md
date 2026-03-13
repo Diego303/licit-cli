@@ -16,6 +16,7 @@
 | [Buenas prácticas](buenas-practicas.md) | Recomendaciones para integrar licit en tu flujo de trabajo |
 | [Desarrollo](desarrollo.md) | Guía para contribuidores: setup, testing, linting, convenciones |
 | [Provenance](provenance.md) | Sistema de trazabilidad: heurísticas, git analyzer, store, attestation, session readers |
+| [Changelog](changelog.md) | Sistema de changelog: watcher, differ, classifier, renderer |
 | [FAQ](faq.md) | Preguntas frecuentes y resolución de problemas |
 
 ## Inicio rápido
@@ -40,10 +41,10 @@ licit report
 
 ## Versión actual
 
-- **v0.2.0** — Fase 1 (Foundation) + Fase 2 (Provenance) completadas
+- **v0.3.0** — Fase 1 (Foundation) + Fase 2 (Provenance) + Fase 3 (Changelog) completadas
 - Python 3.12+ requerido
-- 10 comandos CLI registrados, 4 funcionales (`init`, `status`, `connect`, `trace`)
-- 280 tests, mypy strict, ruff clean
+- 10 comandos CLI registrados, 5 funcionales (`init`, `status`, `connect`, `trace`, `changelog`)
+- 373 tests, mypy strict, ruff clean
 
 ## Licencia
 

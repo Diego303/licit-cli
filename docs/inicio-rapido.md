@@ -15,7 +15,7 @@ pip install licit-ai-cli
 Verifica:
 ```bash
 licit --version
-# licit, version 0.2.0
+# licit, version 0.3.0
 ```
 
 ---
@@ -123,14 +123,37 @@ El comando `trace` analiza cada commit con 6 heurísticas (autor, mensaje, volum
 
 ---
 
+## 6. Generar changelog de configs de agentes
+
+```bash
+licit changelog                        # Markdown por defecto
+licit changelog --format json          # JSON output
+licit changelog --since 2026-01-01     # Desde una fecha
+```
+
+Ejemplo de salida:
+```
+# Agent Config Changelog
+
+> 2 change(s) detected across 1 file(s): **1** major, **1** minor
+
+## CLAUDE.md
+
+- **[MAJOR]** Changed: model from gpt-4 to gpt-5 (`abc1234`) — 2026-03-10
+- **[MINOR]** Changed: section:Rules from 5 lines to 8 lines (+3/-0) (`def5678`) — 2026-03-09
+
+  Changelog saved to .licit/changelog.md
+```
+
+El comando analiza el historial git de los archivos de configuración de agentes, detecta cambios semánticos (no solo diffs de línea) y los clasifica por severidad.
+
+---
+
 ## ¿Qué sigue?
 
 Una vez completadas las fases futuras de licit, podrás:
 
 ```bash
-# Generar changelog de configs de agentes
-licit changelog
-
 # Completar evaluación de impacto (FRIA)
 licit fria
 

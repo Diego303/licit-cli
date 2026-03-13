@@ -1,0 +1,23 @@
+llm:
+  model: claude-opus-4
+  provider: anthropic
+  max_tokens: 16384
+
+guardrails:
+  protected_files:
+    - "*.env"
+    - "secrets.yaml"
+    - "credentials.json"
+  blocked_commands:
+    - "rm -rf /"
+    - "DROP TABLE"
+  quality_gates:
+    - tests_pass
+    - lint_clean
+    - type_check
+
+costs:
+  budget_usd: 100.0
+  warn_at_usd: 80.0
+
+dry_run: true

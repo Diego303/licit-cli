@@ -11,7 +11,7 @@
 |------|--------|--------|-------|----------|
 | **Phase 1** | Foundation | **COMPLETADA + QA** | 113/113 | 22 source + 8 test |
 | **Phase 2** | Provenance | **COMPLETADA + QA** | 167/167 | 10 source + 7 test |
-| Phase 3 | Changelog | Pendiente | — | — |
+| **Phase 3** | Changelog | **COMPLETADA + QA** | 93/93 | 5 source + 11 test |
 | Phase 4 | EU AI Act | Pendiente | — | — |
 | Phase 5 | OWASP Agentic | Pendiente | — | — |
 | Phase 6 | Reports + Gap Analyzer | Pendiente | — | — |
@@ -19,8 +19,8 @@
 
 **Verificación de calidad:**
 - `ruff check src/licit/` — Sin errores
-- `mypy src/licit/ --strict` — Sin errores (0 issues en 31 archivos)
-- `pytest tests/ -q` — 280 tests, todos pasan (113 Phase 1 + 167 Phase 2)
+- `mypy src/licit/ --strict` — Sin errores (0 issues en 33 archivos)
+- `pytest tests/ -q` — 373 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3)
 
 ---
 
@@ -39,7 +39,7 @@ completo del CLI con los 10 comandos, y sistema de logging.
 
 Se configuró el proyecto completo con hatchling como build system:
 - Nombre del paquete: `licit-ai-cli`
-- Versión: `0.2.0`
+- Versión: `0.3.0`
 - Python: `>=3.12`
 - 6 dependencias runtime: click, pydantic, structlog, pyyaml, jinja2, cryptography
 - 4 dependencias dev: pytest, pytest-cov, ruff, mypy
@@ -515,13 +515,211 @@ cualquier repositorio git. Solo era invisible en unit tests porque mockeaban
 
 ---
 
-## Phase 3 — Changelog (PENDIENTE)
+## Phase 3 — Changelog (COMPLETADA)
 
-Módulos a implementar:
-- `src/licit/changelog/watcher.py`
-- `src/licit/changelog/differ.py`
-- `src/licit/changelog/classifier.py`
-- `src/licit/changelog/renderer.py`
+### Objetivo
+Implementar el sistema de monitoreo de cambios en archivos de configuración de agentes
+AI: detección de cambios via git history, diffing semántico por formato, clasificación
+de severidad (MAJOR/MINOR/PATCH), y rendering en Markdown/JSON.
+
+### Módulos Implementados
+
+#### P3.1 — Config Watcher
+
+**Archivo:** `src/licit/changelog/watcher.py`
+
+Monitorea archivos de configuración de agentes AI a través del historial de git.
+
+**Dataclass:** `ConfigSnapshot` con 5 campos (path, content, commit_sha, timestamp, author).
+
+**Clase:** `ConfigWatcher` — Recibe `root_dir` y `watch_patterns`. Resuelve patrones
+a archivos tracked por git, luego recupera snapshots históricos.
+
+**Métodos:**
+
+| Método | Qué hace |
+|--------|----------|
+| `get_watched_files()` | Archivos que existen en filesystem (no requiere git) |
+| `get_config_history(since?)` | Dict `{file: [ConfigSnapshot, ...]}` newest-first |
+| `_resolve_tracked_files()` | Resuelve globs + verifica git history |
+| `_file_has_git_history(path)` | `git log --oneline -1` con timeout 10s |
+| `_get_file_history(path, since?)` | `git log --format=%H\x01%aI\x01%an --follow` con timeout 30s |
+| `_get_file_at_commit(path, sha)` | `git show {sha}:{path}` con size guard |
+
+**Robustez:**
+- `_MAX_CONTENT_BYTES = 1_048_576` — Guard contra archivos binarios accidentalmente tracked
+- Todos los `subprocess.run` con `timeout=` y `check=False` explícito
+- Deduplicación con `seen: set[str]` en resolución de patrones
+- Logging structlog en timeout, failure, y archivos oversized
+
+#### P3.2 — Semantic Differ
+
+**Archivo:** `src/licit/changelog/differ.py`
+
+Diffing semántico por formato de archivo. Produce `FieldDiff` en vez de diffs de línea.
+
+**Dataclass:** `FieldDiff` con 5 campos (field_path, old_value, new_value, is_addition, is_removal).
+
+**Dispatch por extensión:**
+
+| Extensión | Estrategia | Función |
+|-----------|-----------|---------|
+| `.yaml`, `.yml` | Dict recursivo key-value | `_diff_yaml()` |
+| `.json` | Dict recursivo key-value | `_diff_json()` |
+| `.md` | Secciones por headings | `_diff_markdown()` |
+| Otros | Texto completo | `_diff_text()` |
+
+**Funciones auxiliares:**
+- `_coerce_to_dict()` — Wraps non-dict roots (listas, escalares) como `{"(root)": data}` en lugar de descartar silenciosamente. Log debug cuando se detecta root no-dict.
+- `_diff_dicts()` — Diff recursivo. Dicts anidados se recurren; otros tipos producen FieldDiff directo.
+- `_parse_md_sections()` — Parsea markdown en `{heading: body}`. Trackea fenced code blocks (```) para evitar falsos positivos con headings dentro de código.
+- `_to_str()` — Convierte valores a string para display; None se mantiene como None.
+
+**Robustez:**
+- YAML/JSON parse errors producen `FieldDiff(field_path="(parse-error)")` en vez de crash
+- Markdown sin headings cae a diff de texto completo como `(content)`
+- Empty strings producen `[]` (no diffs)
+
+#### P3.3 — Change Classifier
+
+**Archivo:** `src/licit/changelog/classifier.py`
+
+Clasifica cambios por severidad usando los FieldDiff del differ.
+
+**Reglas de severidad:**
+- **MAJOR:** Cambio en campo de `_MAJOR_FIELDS` (model, provider, backend y variantes con prefijo llm/agent)
+- **MINOR:** Cambio en campo de `_MINOR_FIELDS` (prompt, guardrails, rules, tools, etc.) o secciones markdown
+- **MAJOR (escalación):** Eliminación de un campo MINOR (ej: borrar `guardrails`)
+- **PATCH:** Todo lo demás (tweaks de parámetros, formatting)
+
+**Matching por segmentos (`_field_matches`):**
+Compara los últimos N segmentos del field_path contra el patrón. Ejemplo:
+- `llm.model` matches `model` ✓ (último segmento coincide)
+- `model_config` NO matches `model` ✗ (es un solo segmento diferente)
+- `section:model` NO matches `model` ✗ (es un solo segmento "section:model")
+
+Esto previene falsos positivos donde campos como `model_config` o `system_model`
+se clasificaban erróneamente como MAJOR.
+
+**Timestamp:** Usa `datetime.now(tz=UTC)` como fallback cuando no se proporciona,
+evitando mezcla de timestamps naive/aware.
+
+#### P3.4 — Changelog Renderer
+
+**Archivo:** `src/licit/changelog/renderer.py`
+
+Renderiza lista de `ConfigChange` en Markdown o JSON.
+
+**Formato Markdown:**
+- Header `# Agent Config Changelog`
+- Summary con conteos por severidad
+- Secciones por archivo, ordenadas alfabéticamente
+- Dentro de cada archivo: ordenado por severidad (MAJOR primero), luego timestamp descendente
+- Footer con timestamp UTC de generación
+
+**Formato JSON:**
+- Objeto `{"changes": [...]}` con records individuales
+- `ensure_ascii=False` para soporte unicode (ñ, ü, 日本語, etc.)
+- Campos: file_path, field_path, old_value, new_value, severity, description, timestamp, commit_sha
+
+#### P3.5 — CLI Integration
+
+**Archivo:** `src/licit/cli.py` (modificado)
+
+El comando `changelog` ahora usa las implementaciones reales:
+- Imports directos de `ConfigWatcher`, `ChangeClassifier`, `ChangelogRenderer`
+- Import de `ConfigChange` en core models
+- Pipeline: watcher.get_config_history() → classifier.classify_changes() → renderer.render()
+- `--format json` para output JSON
+- `--since` para limitar rango temporal
+- `click.echo(output)` antes de file write (output siempre visible)
+- `try/except OSError` en file write con mensaje de warning
+
+### Tests (93 total de changelog)
+
+| Archivo | # Tests | Qué cubre |
+|---------|---------|-----------|
+| `tests/test_changelog/test_watcher.py` | 12 | Git history retrieval, glob patterns, edge cases, deleted files, deduplication |
+| `tests/test_changelog/test_differ.py` | 19 | YAML/JSON/MD/text diffs, non-dict roots, code blocks, empty, parse errors |
+| `tests/test_changelog/test_classifier.py` | 22 | Field matching, segment-based matching, all severities, escalation, truncation |
+| `tests/test_changelog/test_renderer.py` | 10 | Markdown/JSON rendering, grouping, sorting, empty changes, summary |
+| `tests/test_changelog/test_integration.py` | 3 | Full pipeline markdown, JSON, empty case |
+| `tests/test_changelog/test_qa_edge_cases.py` | 27 | CLI commands, no-git, unicode, timezone, differ/classifier/renderer edges, imports |
+
+### Fixtures de test
+
+| Archivo | Contenido |
+|---------|-----------|
+| `tests/test_changelog/fixtures/claude_md_v1.md` | CLAUDE.md inicial con secciones Instructions y Rules |
+| `tests/test_changelog/fixtures/claude_md_v2.md` | CLAUDE.md modificado con Instructions cambiado, Rules editado, sección Model añadida |
+| `tests/test_changelog/fixtures/cursorrules_v1.txt` | Reglas TypeScript para testing de diff texto plano |
+| `tests/test_changelog/fixtures/architect_config_v1.yaml` | Config YAML con claude-sonnet-4, guardrails, budget |
+| `tests/test_changelog/fixtures/architect_config_v2.yaml` | Config YAML con claude-opus-4, guardrails expandidos, budget mayor |
+
+### Decisiones Técnicas
+
+1. **Segment-based field matching** — `_field_matches()` compara trailing segments en lugar de usar `in` substring. Esto evita que `model_config` dispare MAJOR por contener "model". El patrón `model` solo matchea si el último segmento del path es exactamente `model`.
+
+2. **`_coerce_to_dict()` para roots no-dict** — YAML y JSON permiten roots que son listas o escalares. En vez de descartarlos como `{}`, se wrappean como `{"(root)": data}` para que el diff reporte el cambio.
+
+3. **Fenced code block awareness** — `_parse_md_sections()` trackea el estado `in_code_block` para no interpretar `# heading` dentro de bloques ``` como secciones reales. Importante para CLAUDE.md que frecuentemente contiene ejemplos de código.
+
+4. **Size guard en git show** — `_MAX_CONTENT_BYTES = 1_048_576` previene OOM si un archivo binario fue accidentalmente tracked como config. La limitación es que subprocess carga todo en memoria antes de medir, pero 1MB es suficiente para cualquier config real.
+
+5. **Removal escalation** — Eliminar un campo MINOR (ej: borrar `guardrails`) se escalará a MAJOR porque la eliminación de controles de seguridad es un cambio de mayor impacto que modificarlos.
+
+6. **UTC timestamps everywhere** — Usa `from datetime import UTC` (Python 3.12+) y `datetime.now(tz=UTC)` en todos los fallbacks. Git timestamps son timezone-aware (ISO 8601 con offset); mantener todo aware evita `TypeError` en sort.
+
+### QA Hardening (post-implementación)
+
+Se realizó una revisión de QA completa: verificación estática (`ruff --select ALL`,
+`mypy --strict`), análisis profundo de código, ejecución de tests existentes, escritura
+de tests adicionales de edge cases, y prueba de integración end-to-end con git repo real.
+
+#### Bugs encontrados y corregidos
+
+| # | Severidad | Archivo | Problema | Corrección |
+|---|-----------|---------|----------|------------|
+| 1 | **Alta** | `classifier.py` | `"model" in field_lower` causaba false MAJOR en `model_config`, `system_model` | Reemplazado con `_field_matches()` segment-based matching |
+| 2 | **Alta** | `differ.py` | Non-dict YAML/JSON roots (ej: `[item1, item2]`) se descartaban como `{}` | Reemplazado con `_coerce_to_dict()` wrapping como `{"(root)": data}` |
+| 3 | **Alta** | `watcher.py` | `git show` sin límite de tamaño podía cargar GBs de contenido binario | Añadido `_MAX_CONTENT_BYTES = 1_048_576` guard |
+| 4 | **Alta** | `classifier.py` + `renderer.py` | `datetime.now()` sin timezone (DTZ005) — mezcla naive/aware en sort podía causar `TypeError` | Cambiado a `datetime.now(tz=UTC)` con `from datetime import UTC` |
+| 5 | **Media** | `cli.py` | `Path.write_text()` sin manejo de `OSError` — crash si directorio no writable | Wrapped en `try/except OSError`, echo antes de write |
+| 6 | **Media** | `watcher.py` | `_file_has_git_history()` no logueaba en timeout o failure | Añadido `logger.debug` para ambos paths |
+| 7 | **Baja** | `differ.py` | Headings dentro de fenced code blocks (```) se parseaban como secciones reales | Añadido `in_code_block` tracking en `_parse_md_sections()` |
+
+#### Tests de QA añadidos (27 nuevos en edge cases)
+
+**Archivo:** `tests/test_changelog/test_qa_edge_cases.py`
+
+| Clase | # Tests | Cobertura |
+|-------|---------|-----------|
+| `TestChangelogCLI` | 3 | CLI sin git repo, CLI con git real, CLI JSON format |
+| `TestWatcherNoGit` | 2 | Sin git → empty, get_watched_files sin git |
+| `TestWatcherSingleCommit` | 2 | 1 commit → 1 snapshot, 1 snapshot → 0 diffs |
+| `TestUnicodeHandling` | 4 | Unicode en YAML, Markdown, JSON render, MD render |
+| `TestTimezoneHandling` | 2 | Timestamps aware en sort, default timestamp es UTC |
+| `TestDifferEdgeCases` | 5 | Empty strings, empty→populated, dict→scalar, whitespace, JSON empty |
+| `TestClassifierEdgeCases` | 2 | `section:Model` es MINOR, empty content |
+| `TestRendererEdgeCases` | 2 | Descripción larga, null values en JSON |
+| `TestImportSafety` | 4 | Imports sin circular deps (watcher, differ, classifier, renderer) |
+
+#### Verificación estática final
+
+| Herramienta | Resultado |
+|-------------|-----------|
+| `ruff check src/licit/` | ✅ 0 errores |
+| `mypy --strict src/licit/` | ✅ 0 errores en 33 archivos |
+| `pytest tests/` | ✅ 373 tests passed |
+| E2E real git repo | ✅ Pipeline completo verificado |
+
+#### Riesgos residuales
+
+| Riesgo | Impacto | Nota |
+|--------|---------|------|
+| `git show` carga todo en memoria antes de medir tamaño | Bajo | subprocess no soporta streaming con `capture_output=True`; guard de 1MB mitiga caso común |
+| `_parse_md_sections` no soporta headings setext (`===`/`---`) | Bajo | Solo ATX (`#`); configs AI usan ATX universalmente |
+| Watch patterns con `**` recursivo no testados E2E con git history | Bajo | `Path.glob()` soporta `**`; `_file_has_git_history` recibe path resuelto |
 
 ---
 

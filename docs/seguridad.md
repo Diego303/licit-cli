@@ -194,8 +194,10 @@ licit ejecuta comandos git mediante `subprocess.run()` con las siguientes protec
 - `capture_output=True` — stdout/stderr capturados, no mostrados directamente.
 - `text=True` — Decodificación UTF-8 automática.
 - Sin `shell=True` — Los argumentos se pasan como lista, no como string, previniendo inyección de comandos.
-- `timeout=30` — Timeout explícito de 30 segundos en `git log` para evitar bloqueos en repos masivos.
+- `timeout=30` — Timeout explícito de 30 segundos en `git log` para evitar bloqueos en repos masivos (10 segundos para `git show` y verificaciones de existencia).
 - `subprocess.TimeoutExpired` capturado — retorna lista vacía sin crashear.
+- `check=False` explícito — en todos los `subprocess.run` de provenance y changelog (no lanza excepción en returncode != 0).
+- **Size guard (changelog)**: `ConfigWatcher._MAX_CONTENT_BYTES = 1_048_576` — descarta contenido de `git show` superior a 1 MB para prevenir OOM con archivos binarios accidentalmente tracked.
 
 ```python
 # Así ejecuta licit los comandos git
