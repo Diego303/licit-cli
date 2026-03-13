@@ -10,7 +10,7 @@ licit (CLI)
 ├── core/            Modelos de dominio + detección + evidencia
 ├── logging/         structlog configuración
 ├── provenance/      Trazabilidad de código (Fase 2 — COMPLETADA)
-├── changelog/       Registro de cambios en configs de agentes (Fase 3)
+├── changelog/       Registro de cambios en configs de agentes (Fase 3 — COMPLETADA)
 ├── frameworks/      Evaluadores regulatorios (Fases 4-5)
 │   ├── eu_ai_act/   EU AI Act
 │   └── owasp_agentic/  OWASP Agentic Top 10
@@ -48,36 +48,36 @@ licit (CLI)
 ```
 Proyecto del usuario
        │
-       ├──────────────────────────────────────┐
-       ▼                                      ▼
-┌─────────────────┐                  ┌──────────────────┐
-│ ProjectDetector  │                  │ProvenanceTracker  │
-│                  │                  │                    │
-│ Detecta lenguajes│                  │ ┌──────────────┐  │
-│ frameworks, CI/CD│                  │ │ GitAnalyzer   │  │ ← git log
-│ agentes          │                  │ │  + Heuristics │  │
-└────────┬────────┘                  │ └──────┬───────┘  │
-         │ ProjectContext             │        │          │
-         ▼                           │ ┌──────────────┐  │
-┌─────────────────┐                  │ │SessionReaders │  │ ← ~/.claude/
-│EvidenceCollector │                  │ └──────┬───────┘  │
-│                  │                  │        │          │
-│ .licit/, configs │                  │ ┌──────────────┐  │
-│ SARIF, architect │                  │ │  Attestor    │  │ ← HMAC sign
-└────────┬────────┘                  │ └──────┬───────┘  │
-         │ EvidenceBundle             │        │          │
-         ▼                           │ ┌──────────────┐  │
-┌─────────────────┐                  │ │    Store     │  │ → provenance.jsonl
-│   Evaluadores   │ ← Fases 4-5     │ └──────────────┘  │
-└────────┬────────┘                  └──────────┬───────┘
-         │ ControlResult[]                      │
-         ▼                                      ▼
-┌─────────────────┐                  ┌──────────────────┐
-│   Reportes      │ ← Fase 6        │ Provenance Report │
-└─────────────────┘                  └──────────────────┘
+       ├──────────────────────────────────────┬─────────────────────┐
+       ▼                                      ▼                     ▼
+┌─────────────────┐                  ┌──────────────────┐  ┌───────────────────┐
+│ ProjectDetector  │                  │ProvenanceTracker  │  │  ConfigWatcher     │
+│                  │                  │                    │  │                    │
+│ Detecta lenguajes│                  │ ┌──────────────┐  │  │ git log --follow   │
+│ frameworks, CI/CD│                  │ │ GitAnalyzer   │  │  │ → ConfigSnapshot[] │
+│ agentes          │                  │ │  + Heuristics │  │  └────────┬──────────┘
+└────────┬────────┘                  │ └──────┬───────┘  │           │
+         │ ProjectContext             │        │          │  ┌────────▼──────────┐
+         ▼                           │ ┌──────────────┐  │  │  Semantic Differ   │
+┌─────────────────┐                  │ │SessionReaders │  │  │  (YAML/JSON/MD)    │
+│EvidenceCollector │                  │ └──────┬───────┘  │  └────────┬──────────┘
+│                  │                  │        │          │           │ FieldDiff[]
+│ .licit/, configs │                  │ ┌──────────────┐  │  ┌────────▼──────────┐
+│ SARIF, architect │                  │ │  Attestor    │  │  │ ChangeClassifier   │
+└────────┬────────┘                  │ └──────┬───────┘  │  │ (MAJOR/MINOR/PATCH)│
+         │ EvidenceBundle             │        │          │  └────────┬──────────┘
+         ▼                           │ ┌──────────────┐  │           │ ConfigChange[]
+┌─────────────────┐                  │ │    Store     │  │  ┌────────▼──────────┐
+│   Evaluadores   │ ← Fases 4-5     │ └──────────────┘  │  │ ChangelogRenderer  │
+└────────┬────────┘                  └──────────┬───────┘  │ (Markdown / JSON)  │
+         │ ControlResult[]                      │          └────────┬──────────┘
+         ▼                                      ▼                   ▼
+┌─────────────────┐                  ┌──────────────────┐  ┌───────────────────┐
+│   Reportes      │ ← Fase 6        │ Provenance Report │  │ changelog.md/json  │
+└─────────────────┘                  └──────────────────┘  └───────────────────┘
 ```
 
-## Módulos implementados (Fases 1-2)
+## Módulos implementados (Fases 1-3)
 
 ### config/ — Configuración
 
@@ -106,9 +106,16 @@ Proyecto del usuario
 - **`session_readers/base.py`**: Protocol `SessionReader` para extensibilidad.
 - **`session_readers/claude_code.py`**: Lee sesiones Claude Code (JSONL) de `~/.claude/projects/`.
 
+### changelog/ — Changelog de configs de agentes
+
+- **`watcher.py`**: `ConfigWatcher` monitorea archivos de configuración a través del historial de git. `ConfigSnapshot` dataclass. Size guard de 1 MB, timeouts explícitos, deduplicación.
+- **`differ.py`**: Diffing semántico por formato: YAML/JSON (dict recursivo), Markdown (secciones con code block awareness), texto plano. `FieldDiff` dataclass. `_coerce_to_dict()` para roots no-dict.
+- **`classifier.py`**: Clasificación MAJOR/MINOR/PATCH con matching por segmentos (`_field_matches`). Escalación por eliminación. Timestamps UTC.
+- **`renderer.py`**: Rendering en Markdown (agrupado por archivo, ordenado por severidad) y JSON (`ensure_ascii=False`).
+
 ### cli.py — Interfaz de línea de comandos
 
-10 comandos registrados con Click. Cuatro funcionales: `init`, `status`, `connect`, `trace`. Los demás tienen firmas completas y help text, pero sus imports son lazy para módulos de fases futuras.
+10 comandos registrados con Click. Cinco funcionales: `init`, `status`, `connect`, `trace`, `changelog`. Los demás tienen firmas completas y help text, pero sus imports son lazy para módulos de fases futuras.
 
 ## Fases de implementación
 
@@ -116,7 +123,7 @@ Proyecto del usuario
 |---|---|---|---|
 | 1 | Foundation | **COMPLETADA** | Config, modelos, detección, evidencia, CLI, logging |
 | 2 | Provenance | **COMPLETADA** | git_analyzer, heuristics, store JSONL, HMAC, attestation, session readers, report |
-| 3 | Changelog | Pendiente | Watcher de configs de agentes, differ, clasificador |
+| 3 | Changelog | **COMPLETADA** | watcher, differ semántico, classifier (MAJOR/MINOR/PATCH), renderer (MD/JSON) |
 | 4 | EU AI Act | Pendiente | Evaluador, FRIA interactivo, Annex IV |
 | 5 | OWASP | Pendiente | Evaluador OWASP Agentic Top 10 |
 | 6 | Reports | Pendiente | Reporte unificado, gap analyzer, Markdown/JSON/HTML |
@@ -138,7 +145,11 @@ Phase 2: provenance ← core/models + config (COMPLETADA)
          provenance/session_readers ← core/models
          provenance/tracker ← git_analyzer + session_readers + attestation + store + config
          provenance/report ← core/models
-Phase 3: changelog ← core/models + config
+Phase 3: changelog ← core/models + config (COMPLETADA)
+         changelog/watcher ← subprocess (git)
+         changelog/differ ← yaml + json (independiente)
+         changelog/classifier ← differ + core/models
+         changelog/renderer ← core/models
 Phase 4: frameworks/eu_ai_act ← core/* + evidence
 Phase 5: frameworks/owasp ← core/* + evidence
 Phase 6: reports ← frameworks/* + evidence + core/models
@@ -182,7 +193,11 @@ licit-cli/
 │       │   └── session_readers/
 │       │       ├── base.py     # Protocol SessionReader
 │       │       └── claude_code.py  # Reader Claude Code JSONL
-│       ├── changelog/          # (Fase 3)
+│       ├── changelog/          # Fase 3 (COMPLETADA)
+│       │   ├── watcher.py      # Monitoreo git de configs de agentes
+│       │   ├── differ.py       # Diffing semántico (YAML/JSON/MD/text)
+│       │   ├── classifier.py   # Clasificación MAJOR/MINOR/PATCH
+│       │   └── renderer.py     # Rendering Markdown + JSON
 │       ├── frameworks/         # (Fases 4-5)
 │       ├── connectors/         # (Fase 7)
 │       └── reports/            # (Fase 6)
@@ -196,13 +211,21 @@ licit-cli/
     ├── test_core/
     │   ├── test_project.py     # Tests de detección (12)
     │   └── test_evidence.py    # Tests de evidencia (11)
-    └── test_provenance/
-        ├── test_heuristics.py      # Tests heurísticas (23)
-        ├── test_git_analyzer.py    # Tests git analyzer (15)
-        ├── test_store.py           # Tests store JSONL (15)
-        ├── test_attestation.py     # Tests attestation (13)
-        ├── test_tracker.py         # Tests tracker (7)
-        ├── test_session_reader.py  # Tests session reader (13)
-        ├── test_qa_edge_cases.py   # Tests QA Phase 2 (81)
+    ├── test_provenance/
+    │   ├── test_heuristics.py      # Tests heurísticas (23)
+    │   ├── test_git_analyzer.py    # Tests git analyzer (15)
+    │   ├── test_store.py           # Tests store JSONL (15)
+    │   ├── test_attestation.py     # Tests attestation (13)
+    │   ├── test_tracker.py         # Tests tracker (7)
+    │   ├── test_session_reader.py  # Tests session reader (13)
+    │   ├── test_qa_edge_cases.py   # Tests QA Phase 2 (81)
+    │   └── fixtures/               # Datos de test
+    └── test_changelog/
+        ├── test_watcher.py         # Tests watcher (12)
+        ├── test_differ.py          # Tests differ (19)
+        ├── test_classifier.py      # Tests classifier (22)
+        ├── test_renderer.py        # Tests renderer (10)
+        ├── test_integration.py     # Tests integración (3)
+        ├── test_qa_edge_cases.py   # Tests QA Phase 3 (27)
         └── fixtures/               # Datos de test
 ```

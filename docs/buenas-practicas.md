@@ -195,7 +195,24 @@ jobs:
       - run: licit verify
 ```
 
-### 12. Genera reportes periódicamente
+### 12. Genera changelog de configs de agentes
+
+Ejecuta `licit changelog` regularmente para documentar cambios en la configuración de tus agentes IA. Esto es evidencia clave para compliance:
+
+```bash
+licit changelog                        # Markdown por defecto
+licit changelog --format json          # JSON para integración
+licit changelog --since 2026-03-01     # Desde una fecha
+```
+
+El changelog clasifica cada cambio como **MAJOR** (modelo/provider), **MINOR** (prompt/guardrails/tools) o **PATCH** (tweaks). Los cambios MAJOR merecen atención especial — pueden afectar el comportamiento del agente.
+
+```bash
+git add .licit/changelog.md
+git commit -m "docs: update agent config changelog"
+```
+
+### 13. Genera reportes periódicamente
 
 No esperes a la auditoría. Genera reportes en cada release:
 
@@ -208,7 +225,7 @@ git add .licit/reports/ .licit/changelog.md
 git commit -m "docs: update compliance report for v1.2.0"
 ```
 
-### 13. Revisa las brechas regularmente
+### 14. Revisa las brechas regularmente
 
 ```bash
 licit gaps
@@ -220,7 +237,7 @@ Prioriza cerrar las brechas de mayor prioridad primero.
 
 ## Conectores
 
-### 14. Habilita conectores cuando sea posible
+### 15. Habilita conectores cuando sea posible
 
 Si usas Architect o Vigil, habilítalos. Aportan evidencia adicional:
 
@@ -238,7 +255,7 @@ licit connect vigil
 - Hallazgos de seguridad (SARIF)
 - SBOM (Software Bill of Materials)
 
-### 15. Integra herramientas de seguridad
+### 16. Integra herramientas de seguridad
 
 licit detecta automáticamente estas herramientas y usa sus resultados como evidencia:
 
@@ -254,7 +271,7 @@ licit detecta automáticamente estas herramientas y usa sus resultados como evid
 
 ## Organización del equipo
 
-### 16. Designa un compliance lead
+### 17. Designa un compliance lead
 
 Alguien del equipo debe ser responsable de:
 - Revisar reportes de licit periódicamente.
@@ -262,7 +279,7 @@ Alguien del equipo debe ser responsable de:
 - Mantener actualizado el FRIA.
 - Coordinar con legal/compliance si es necesario.
 
-### 17. Documenta las decisiones
+### 18. Documenta las decisiones
 
 Cuando un requisito se marca como `n/a` (no aplica), documenta por qué. Esto es importante para auditorías:
 
@@ -272,7 +289,7 @@ Art. 10 (Data Governance): N/A — Este sistema no entrena modelos,
 solo usa modelos pre-entrenados via API.
 ```
 
-### 18. Mantén la configuración actualizada
+### 19. Mantén la configuración actualizada
 
 Cuando cambies de herramienta de IA, actualiza la configuración:
 

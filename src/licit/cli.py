@@ -13,7 +13,7 @@ from licit import __version__
 from licit.config.loader import load_config, save_config
 from licit.config.schema import FrameworkConfig, LicitConfig
 from licit.core.evidence import EvidenceCollector
-from licit.core.models import ComplianceStatus, ControlResult
+from licit.core.models import ComplianceStatus, ConfigChange, ControlResult
 from licit.core.project import ProjectDetector
 from licit.logging.setup import setup_logging
 
@@ -181,19 +181,19 @@ def changelog(ctx: click.Context, since: str | None, fmt: str) -> None:
     config = load_config(ctx.obj.get("config_path"))
     root = str(Path.cwd())
 
-    from licit.changelog.classifier import ChangeClassifier  # type: ignore[import-not-found]
-    from licit.changelog.renderer import ChangelogRenderer  # type: ignore[import-not-found]
-    from licit.changelog.watcher import ConfigWatcher  # type: ignore[import-not-found]
+    from licit.changelog.classifier import ChangeClassifier
+    from licit.changelog.renderer import ChangelogRenderer
+    from licit.changelog.watcher import ConfigWatcher
 
-    watcher: Any = ConfigWatcher(root, config.changelog.watch_files)
-    history: dict[str, list[Any]] = watcher.get_config_history(since=since)
+    watcher = ConfigWatcher(root, config.changelog.watch_files)
+    history = watcher.get_config_history(since=since)
 
     if not history:
         click.echo("  No agent configuration changes found.")
         return
 
-    classifier: Any = ChangeClassifier()
-    all_changes: list[Any] = []
+    classifier = ChangeClassifier()
+    all_changes: list[ConfigChange] = []
     for file_path, snapshots in history.items():
         for i in range(len(snapshots) - 1):
             changes = classifier.classify_changes(
@@ -201,18 +201,23 @@ def changelog(ctx: click.Context, since: str | None, fmt: str) -> None:
                 new_content=snapshots[i].content,
                 file_path=file_path,
                 commit_sha=snapshots[i].commit_sha,
+                timestamp=snapshots[i].timestamp,
             )
             all_changes.extend(changes)
 
-    renderer: Any = ChangelogRenderer()
-    output: str = renderer.render(all_changes, fmt=fmt)
-
-    output_path = config.changelog.output_path
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(output_path).write_text(output, encoding="utf-8")
+    renderer = ChangelogRenderer()
+    output = renderer.render(all_changes, fmt=fmt)
 
     click.echo(output)
-    click.echo(f"\n  Changelog saved to {output_path}")
+
+    output_path = config.changelog.output_path
+    try:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(output_path).write_text(output, encoding="utf-8")
+        click.echo(f"\n  Changelog saved to {output_path}")
+    except OSError as exc:
+        logger.error("changelog_write_failed", path=output_path, error=str(exc))
+        click.echo(f"\n  Warning: could not save changelog to {output_path}: {exc}")
 
 
 @main.command()

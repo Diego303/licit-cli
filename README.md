@@ -199,6 +199,40 @@ provenance:
 - Batch records signed with Merkle tree (root hash)
 - Timing-safe verification via `hmac.compare_digest`
 
+## Agent Config Changelog
+
+licit tracks changes to AI agent configuration files across git history, producing semantic diffs with severity classification.
+
+```bash
+licit changelog                        # Generate changelog (Markdown)
+licit changelog --format json          # JSON output
+licit changelog --since 2026-01-01     # Since specific date
+```
+
+### Pipeline
+
+```
+ConfigWatcher → Semantic Differ → Change Classifier → Renderer
+  (git log)     (YAML/JSON/MD)    (MAJOR/MINOR/PATCH)  (MD/JSON)
+```
+
+### Severity Classification
+
+| Severity | Trigger | Examples |
+|----------|---------|----------|
+| **MAJOR** | Model/provider change, or removal of a MINOR field | `model: gpt-4` → `model: gpt-5`, removing `guardrails` |
+| **MINOR** | Prompt, guardrails, tools, rules, or markdown section changes | Editing `system_prompt`, adding `blocked_commands` |
+| **PATCH** | Everything else | Parameter tweaks, formatting, comments |
+
+### Supported Formats
+
+| Format | Diff Strategy |
+|--------|--------------|
+| YAML (`.yaml`, `.yml`) | Recursive key-value diff with nested dict support |
+| JSON (`.json`) | Recursive key-value diff |
+| Markdown (`.md`) | Section-aware diff (by headings), with fenced code block awareness |
+| Plain text | Whole-file line diff |
+
 ## Configuration
 
 All configuration lives in `.licit.yaml`:
@@ -268,7 +302,11 @@ src/licit/
 │   └── session_readers/                # Agent session log parsers
 │       ├── base.py                     # SessionReader Protocol
 │       └── claude_code.py              # Claude Code JSONL reader
-├── changelog/                          # Agent config monitoring (Phase 3)
+├── changelog/                          # ✅ Phase 3 — complete
+│   ├── watcher.py                     # Git history tracking of config files
+│   ├── differ.py                      # Semantic diff (YAML/JSON/MD/text)
+│   ├── classifier.py                  # Severity classification (MAJOR/MINOR/PATCH)
+│   └── renderer.py                    # Markdown + JSON output
 ├── frameworks/                         # EU AI Act, OWASP (Phase 4-5)
 ├── connectors/                         # architect + vigil (Phase 7)
 ├── reports/                            # Unified reports, gap analysis (Phase 6)
@@ -296,7 +334,7 @@ Full documentation (in Spanish) is available in the [`docs/`](docs/) directory:
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests (280 tests)
+# Run tests (373 tests)
 pytest tests/ -q
 
 # Lint

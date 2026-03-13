@@ -1,0 +1,4 @@
+Use TypeScript with strict mode.
+Prefer functional components in React.
+Always use TailwindCSS for styling.
+Never use inline styles.

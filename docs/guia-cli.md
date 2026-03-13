@@ -35,7 +35,7 @@ python -m licit [opciones] <comando> [argumentos]
 
 ```bash
 licit --version
-# licit, version 0.2.0
+# licit, version 0.3.0
 
 licit --verbose status
 # Muestra logs de debug durante la ejecución
@@ -235,9 +235,9 @@ Solo las heurísticas que producen señal (score > 0) contribuyen al promedio po
 
 ### `licit changelog`
 
-Genera un changelog de cambios en configuraciones de agentes IA.
+Genera un changelog de cambios en configuraciones de agentes IA con diffing semántico y clasificación de severidad.
 
-> **Estado**: Registrado en CLI. Funcional a partir de Fase 3.
+> **Estado**: **Funcional** (Fase 3 completada).
 
 ```bash
 licit changelog [--since DATE|TAG] [--format {markdown|json}]
@@ -248,15 +248,64 @@ licit changelog [--since DATE|TAG] [--format {markdown|json}]
 | Opción | Default | Descripción |
 |---|---|---|
 | `--since` | (todos) | Cambios desde fecha o tag |
-| `--format` | `markdown` | Formato de salida |
+| `--format` | `markdown` | Formato de salida: `markdown` o `json` |
 
-**Archivos monitoreados:**
-- `CLAUDE.md`
-- `.cursorrules`, `.cursor/rules`
-- `AGENTS.md`
-- `.github/copilot-instructions.md`
-- `.github/agents/*.md`
+**Qué hace:**
+1. Ejecuta `ConfigWatcher` para recuperar el historial git de los archivos monitoreados.
+2. Aplica `diff_configs()` (differ semántico) entre versiones consecutivas de cada archivo.
+3. Clasifica cada cambio con `ChangeClassifier` (MAJOR/MINOR/PATCH).
+4. Renderiza el changelog con `ChangelogRenderer` (Markdown o JSON).
+5. Muestra el output en terminal y lo guarda en `output_path`.
+
+**Archivos monitoreados (por defecto):**
+- `CLAUDE.md`, `.cursorrules`, `.cursor/rules`
+- `AGENTS.md`, `.github/copilot-instructions.md`, `.github/agents/*.md`
 - `.architect/config.yaml`, `architect.yaml`
+
+**Ejemplo:**
+```bash
+$ licit changelog
+
+# Agent Config Changelog
+
+> 3 change(s) detected across 2 file(s): **1** major, **1** minor, **1** patch
+
+## .architect/config.yaml
+
+- **[MAJOR]** Changed: model from claude-sonnet-4 to claude-opus-4 (`a1b2c3d4`) — 2026-03-12
+- **[PATCH]** Changed: budget.max_cost_usd from 5.0 to 10.0 (`a1b2c3d4`) — 2026-03-12
+
+## CLAUDE.md
+
+- **[MINOR]** Changed: section:Rules from 5 lines to 8 lines (+3/-0) (`e5f6g7h8`) — 2026-03-11
+
+  Changelog saved to .licit/changelog.md
+```
+
+**Ejemplo JSON:**
+```bash
+$ licit changelog --format json --since 2026-03-01
+# Genera JSON con array "changes" y guarda en .licit/changelog.md
+```
+
+**Clasificación de severidad:**
+
+| Severidad | Trigger | Ejemplos |
+|---|---|---|
+| **MAJOR** | Cambio de modelo/provider, o eliminación de campo MINOR | `model: gpt-4` → `gpt-5`, borrar `guardrails` |
+| **MINOR** | Cambio de prompt, guardrails, tools, reglas, secciones Markdown | Editar `system_prompt`, añadir `blocked_commands` |
+| **PATCH** | Todo lo demás | Ajuste de parámetros, formatting |
+
+**Formatos de diff soportados:**
+
+| Formato | Extensiones | Estrategia |
+|---|---|---|
+| YAML | `.yaml`, `.yml` | Diff recursivo de key-value |
+| JSON | `.json` | Diff recursivo de key-value |
+| Markdown | `.md` | Diff por secciones (headings) |
+| Texto plano | Otros | Diff de contenido completo |
+
+Para documentación detallada del sistema de changelog, ver [Changelog](../docs/changelog.md).
 
 ---
 
@@ -394,7 +443,7 @@ licit verify [--framework {eu-ai-act|owasp|all}]
 | `status` | 1 | Funcional | Muestra estado y fuentes conectadas |
 | `connect` | 1 | Funcional | Configura conectores |
 | `trace` | 2 | **Funcional** | Trazabilidad de proveniencia |
-| `changelog` | 3 | Skeleton | Changelog de configs de agentes |
+| `changelog` | 3 | **Funcional** | Changelog de configs de agentes |
 | `fria` | 4 | Skeleton | FRIA (EU AI Act Art. 27) |
 | `annex-iv` | 4 | Skeleton | Documentación técnica Anexo IV |
 | `report` | 6 | Skeleton | Reporte unificado de compliance |

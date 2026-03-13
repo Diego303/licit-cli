@@ -125,13 +125,15 @@ provenance:
 
 ### changelog — Monitoreo de configs de agentes
 
-Rastrea cambios en archivos de configuración de agentes IA a través del historial git.
+> **Estado**: **Funcional** desde v0.3.0. Ejecuta con `licit changelog`.
+
+Rastrea cambios en archivos de configuración de agentes IA a través del historial git, produciendo diffs semánticos con clasificación de severidad (MAJOR/MINOR/PATCH).
 
 | Campo | Tipo | Default | Descripción |
 |---|---|---|---|
 | `enabled` | bool | `true` | Habilitar monitoreo |
-| `watch_files` | list[str] | (ver ejemplo) | Archivos a monitorear |
-| `output_path` | str | `.licit/changelog.md` | Ruta del changelog |
+| `watch_files` | list[str] | (ver ejemplo) | Archivos/globs a monitorear |
+| `output_path` | str | `.licit/changelog.md` | Ruta del changelog generado |
 
 **Archivos monitoreados por defecto:**
 
@@ -146,14 +148,34 @@ Rastrea cambios en archivos de configuración de agentes IA a través del histor
 | `.architect/config.yaml` | Architect |
 | `architect.yaml` | Architect (alternativo) |
 
+Los patrones con `*` se resuelven usando `Path.glob()`. Los nombres exactos verifican existencia en git history.
+
+**Pipeline de procesamiento:**
+```
+ConfigWatcher → Semantic Differ → ChangeClassifier → ChangelogRenderer
+  (git log)     (YAML/JSON/MD)   (MAJOR/MINOR/PATCH)   (MD/JSON)
+```
+
+**Formatos de diff:** YAML y JSON producen diffs a nivel de campo (`model`, `llm.provider`). Markdown produce diffs por sección (`section:Rules`). Texto plano produce diff del contenido completo.
+
+**Formatos de salida:** `markdown` (default) agrupa por archivo y ordena por severidad. `json` produce un objeto `{"changes": [...]}`.
+
 **Ejemplo — Añadir archivo custom:**
 ```yaml
 changelog:
   watch_files:
     - CLAUDE.md
     - .cursorrules
-    - mi-agente-custom.yaml  # archivo adicional
+    - mi-agente-custom.yaml       # archivo adicional
+    - .prompts/**/*.md             # glob recursivo
 ```
+
+**Ejemplo — JSON output:**
+```bash
+licit changelog --format json --since 2026-01-01
+```
+
+Para documentación detallada, ver [Sistema de Changelog](changelog.md).
 
 ### frameworks — Marcos regulatorios
 

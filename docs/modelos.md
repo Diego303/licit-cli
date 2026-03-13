@@ -240,6 +240,49 @@ score = sum(r.score * r.weight for r in signaling) / total_weight
 
 ---
 
+## Modelos de changelog (Fase 3)
+
+### ConfigSnapshot
+
+Snapshot de un archivo de configuración en un punto del historial git.
+
+```python
+@dataclass
+class ConfigSnapshot:
+    path: str          # Ruta relativa del archivo
+    content: str       # Contenido del archivo en ese commit
+    commit_sha: str    # Hash SHA del commit
+    timestamp: datetime # Fecha del commit (timezone-aware desde git)
+    author: str        # Autor del commit
+```
+
+**Uso**: Producido por `ConfigWatcher._get_file_history()`, consumido por `ChangeClassifier.classify_changes()`.
+
+### FieldDiff
+
+Diferencia a nivel de campo entre dos versiones de un archivo de configuración.
+
+```python
+@dataclass
+class FieldDiff:
+    field_path: str           # "model", "llm.provider", "section:Rules", "(content)"
+    old_value: str | None     # Valor anterior (None si es adición)
+    new_value: str | None     # Valor nuevo (None si es eliminación)
+    is_addition: bool = False # Campo nuevo
+    is_removal: bool = False  # Campo eliminado
+```
+
+**Uso**: Producido por `diff_configs()`, consumido por `ChangeClassifier._classify_field()`.
+
+**Convenciones de `field_path`:**
+- YAML/JSON: dotted path (`model`, `llm.model`, `guardrails.protected_files`)
+- Markdown: `section:{heading}` (ej: `section:Rules`, `section:Instructions`)
+- Texto plano / Markdown sin headings: `(content)`
+- Errores de parseo: `(parse-error)`
+- Roots no-dict: `(root)`
+
+---
+
 ## Modelos de detección
 
 Usados por `ProjectDetector` para describir el contexto del proyecto.
