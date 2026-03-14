@@ -125,7 +125,7 @@ Exit codes: `0` = compliant, `1` = non-compliant, `2` = partially compliant.
 | Framework | Version | Status |
 |-----------|---------|--------|
 | EU AI Act | Regulation (EU) 2024/1689 | **V0 — Implemented** |
-| OWASP Agentic Top 10 | 2026 | V0 — Pending |
+| OWASP Agentic Top 10 | 2025 | **V0 — Implemented** |
 | NIST AI RMF | AI 100-1 | Planned (V1) |
 | ISO/IEC 42001 | 2023 | Planned (V1) |
 
@@ -143,7 +143,18 @@ licit evaluates deployer obligations across key articles:
 
 ### OWASP Agentic Top 10 Coverage
 
-Maps project security posture against all 10 agentic AI risks including prompt injection, unauthorized code execution, data exfiltration, and privilege escalation.
+Evaluates project security posture against all 10 agentic AI risks:
+
+- **ASI01** — Excessive Agency (guardrails, budget limits, agent scope)
+- **ASI02** — Prompt Injection (vigil scanning, input guardrails)
+- **ASI03** — Supply Chain (Snyk/Semgrep/CodeQL/Trivy, config versioning)
+- **ASI04** — Logging & Monitoring (git, audit trail, provenance, OTel)
+- **ASI05** — Output Handling (human review, quality gates, test suite)
+- **ASI06** — Human Oversight (review gates, dry-run, rollback)
+- **ASI07** — Sandboxing (guardrails, CI/CD isolation)
+- **ASI08** — Resource Consumption (budget limits, quality gates)
+- **ASI09** — Error Handling (test suite, CI/CD, rollback)
+- **ASI10** — Data Exposure (protected files, security scanning)
 
 ## Agent Configs Detected
 
@@ -307,15 +318,19 @@ src/licit/
 │   ├── differ.py                      # Semantic diff (YAML/JSON/MD/text)
 │   ├── classifier.py                  # Severity classification (MAJOR/MINOR/PATCH)
 │   └── renderer.py                    # Markdown + JSON output
-├── frameworks/                         # ✅ Phase 4 — EU AI Act complete
+├── frameworks/                         # ✅ Phase 4+5 — EU AI Act + OWASP complete
 │   ├── base.py                        # ComplianceFramework Protocol
 │   ├── registry.py                    # Framework registry
-│   └── eu_ai_act/
-│       ├── requirements.py            # 11 articles as ControlRequirements
-│       ├── evaluator.py               # Article-by-article compliance evaluation
-│       ├── fria.py                    # FRIA interactive generator (Art. 27)
-│       ├── annex_iv.py                # Annex IV technical documentation
-│       └── templates/                 # Jinja2 templates (FRIA, Annex IV, report)
+│   ├── eu_ai_act/
+│   │   ├── requirements.py            # 11 articles as ControlRequirements
+│   │   ├── evaluator.py               # Article-by-article compliance evaluation
+│   │   ├── fria.py                    # FRIA interactive generator (Art. 27)
+│   │   ├── annex_iv.py                # Annex IV technical documentation
+│   │   └── templates/                 # Jinja2 templates (FRIA, Annex IV, report)
+│   └── owasp_agentic/
+│       ├── requirements.py            # 10 risks as ControlRequirements
+│       ├── evaluator.py               # Risk-by-risk security evaluation
+│       └── templates/                 # Jinja2 report template
 ├── connectors/                         # architect + vigil (Phase 7)
 ├── reports/                            # Unified reports, gap analysis (Phase 6)
 └── logging/                            # structlog configuration
@@ -342,7 +357,7 @@ Full documentation (in Spanish) is available in the [`docs/`](docs/) directory:
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests (497 tests)
+# Run tests (600 tests)
 pytest tests/ -q
 
 # Lint
@@ -364,7 +379,7 @@ mypy src/licit/ --strict
 
 | Version | Key Features |
 |---------|-------------|
-| **V0** (current) | CLI, provenance tracking (git + Claude Code sessions), EU AI Act, OWASP, FRIA, Annex IV, CI/CD gate |
+| **V0** (current) | CLI, provenance tracking (git + Claude Code sessions), EU AI Act (11 articles), OWASP Agentic Top 10, FRIA, Annex IV, CI/CD gate |
 | **V0.x** | Cursor/Codex session readers, PDF reports, GitHub Action |
 | **V1** | NIST AI RMF, ISO 42001, plugin system, Sigstore, MCP Server |
 | **V2** | Web dashboard, multi-project, trend analysis, AI remediation |

@@ -115,6 +115,11 @@ def make_evidence(
     changelog_entry_count: int = 0,
     has_dry_run: bool = False,
     has_rollback: bool = False,
+    has_otel: bool = False,
+    has_requirements_traceability: bool = False,
+    security_findings_total: int = 0,
+    security_findings_critical: int = 0,
+    security_findings_high: int = 0,
 ) -> EvidenceBundle:
     """Build an EvidenceBundle for testing."""
     return EvidenceBundle(
@@ -136,4 +141,9 @@ def make_evidence(
         changelog_entry_count=changelog_entry_count,
         has_dry_run=has_dry_run,
         has_rollback=has_rollback,
+        has_otel=has_otel,
+        has_requirements_traceability=has_requirements_traceability,
+        security_findings_total=security_findings_total,
+        security_findings_critical=security_findings_critical,
+        security_findings_high=security_findings_high,
     )

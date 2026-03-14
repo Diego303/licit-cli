@@ -30,7 +30,7 @@ python3.12 -m pip install -e ".[dev]"
 
 # Verificar la instalación
 licit --version
-# licit, version 0.4.0
+# licit, version 0.5.0
 ```
 
 ### Dependencias de desarrollo
@@ -73,7 +73,7 @@ python3.12 -m licit status                  # Probar status
 
 ```
 src/licit/
-├── __init__.py         # __version__ = "0.4.0"
+├── __init__.py         # __version__ = "0.5.0"
 ├── __main__.py         # Entry point: python -m licit
 ├── py.typed            # PEP 561 marker
 ├── cli.py              # Todos los comandos Click
@@ -102,15 +102,19 @@ src/licit/
 │   ├── differ.py       # Diffing semántico (YAML/JSON/MD/text)
 │   ├── classifier.py   # Clasificación MAJOR/MINOR/PATCH
 │   └── renderer.py     # Rendering Markdown + JSON
-├── frameworks/         # Fase 4 (COMPLETADA)
+├── frameworks/         # Fases 4-5 (COMPLETADAS)
 │   ├── base.py        # Protocol ComplianceFramework
 │   ├── registry.py    # FrameworkRegistry
-│   └── eu_ai_act/     # EU AI Act evaluator, FRIA, Annex IV
+│   ├── eu_ai_act/     # EU AI Act evaluator, FRIA, Annex IV
+│   │   ├── requirements.py
+│   │   ├── evaluator.py
+│   │   ├── fria.py
+│   │   ├── annex_iv.py
+│   │   └── templates/  # Jinja2 templates
+│   └── owasp_agentic/ # OWASP Agentic Top 10 evaluator
 │       ├── requirements.py
 │       ├── evaluator.py
-│       ├── fria.py
-│       ├── annex_iv.py
-│       └── templates/  # Jinja2 templates
+│       └── templates/  # Jinja2 template
 ├── connectors/         # Fase 7
 └── reports/            # Fase 6
 ```
@@ -185,7 +189,7 @@ def mi_comando() -> None:
     generator: Any = UnifiedReportGenerator(...)
 ```
 
-> **Nota**: Los módulos de Fases 2-4 (provenance, changelog, eu_ai_act) ya están implementados y se importan directamente sin `type: ignore`. Solo `reports/` (Phase 6) y `owasp_agentic/` (Phase 5) usan stubs lazy.
+> **Nota**: Los módulos de Fases 2-5 (provenance, changelog, eu_ai_act, owasp_agentic) ya están implementados y se importan directamente sin `type: ignore`. Solo `reports/` (Phase 6) usa stubs lazy.
 
 ### 6. Ruff y mypy
 
@@ -229,15 +233,19 @@ tests/
 │   ├── test_qa_edge_cases.py       # 27 tests (QA Phase 3)
 │   └── fixtures/                   # Datos de test
 └── test_frameworks/
-    └── test_eu_ai_act/
-        ├── test_evaluator.py       # 32 tests
-        ├── test_fria.py            # 23 tests
-        ├── test_annex_iv.py        # 17 tests
-        ├── test_requirements.py    # 9 tests
-        └── test_qa_edge_cases.py   # 43 tests (QA Phase 4)
+    ├── test_eu_ai_act/
+    │   ├── test_evaluator.py       # 32 tests
+    │   ├── test_fria.py            # 23 tests
+    │   ├── test_annex_iv.py        # 17 tests
+    │   ├── test_requirements.py    # 9 tests
+    │   └── test_qa_edge_cases.py   # 43 tests (QA Phase 4)
+    └── test_owasp/
+        ├── test_evaluator.py       # 40 tests
+        ├── test_requirements.py    # 15 tests
+        └── test_qa_edge_cases.py   # 48 tests (QA Phase 5)
 ```
 
-**Total: 497 tests**
+**Total: 600 tests**
 
 ### Fixtures disponibles (conftest.py)
 
@@ -367,7 +375,7 @@ class LicitConfig(BaseModel):
    - Tests en tests/
 
 3. Verificar
-   python3.12 -m pytest tests/ -q      # 497+ tests passing
+   python3.12 -m pytest tests/ -q      # 600+ tests passing
    python3.12 -m ruff check src/licit/  # All checks passed
    python3.12 -m mypy src/licit/ --strict  # No issues found
 
@@ -386,7 +394,7 @@ class LicitConfig(BaseModel):
 | 2 | `heuristics.py`, `git_analyzer.py`, `store.py`, `attestation.py`, `tracker.py`, `report.py`, `session_readers/` | `provenance/` | **COMPLETADA** |
 | 3 | `watcher.py`, `differ.py`, `classifier.py`, `renderer.py` | `changelog/` | **COMPLETADA** |
 | 4 | `base.py`, `registry.py`, `requirements.py`, `evaluator.py`, `fria.py`, `annex_iv.py`, `templates/` | `frameworks/`, `frameworks/eu_ai_act/` | **COMPLETADA** |
-| 5 | `requirements.py`, `evaluator.py`, `templates/` | `frameworks/owasp_agentic/` | Pendiente |
+| 5 | `requirements.py`, `evaluator.py`, `templates/` | `frameworks/owasp_agentic/` | **COMPLETADA** |
 | 6 | `unified.py`, `gap_analyzer.py`, `markdown.py`, `json_fmt.py`, `html.py` | `reports/` | Pendiente |
 | 7 | `base.py`, `architect.py`, `vigil.py` | `connectors/` | Pendiente |
 

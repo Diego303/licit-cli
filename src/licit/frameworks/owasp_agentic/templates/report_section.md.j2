@@ -1,0 +1,28 @@
+## {{ framework_name }} ({{ framework_version }})
+
+{{ framework_description }}
+
+| Status | Count |
+|--------|-------|
+| Compliant | {{ summary.compliant }} |
+| Partial | {{ summary.partial }} |
+| Non-compliant | {{ summary.non_compliant }} |
+| Not applicable | {{ summary.not_applicable }} |
+| Not evaluated | {{ summary.not_evaluated }} |
+| **Compliance rate** | **{{ "%.1f" | format(summary.compliance_rate) }}%** |
+
+{% for result in results %}
+### {{ result.requirement.id }}: {{ result.requirement.name }}
+
+- **Status**: {{ result.status }}
+- **Reference**: {{ result.requirement.article_ref or 'N/A' }}
+- **Evidence**: {{ result.evidence }}
+{% if result.recommendations %}
+
+**Recommendations:**
+{% for rec in result.recommendations %}
+- {{ rec }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}

@@ -11,11 +11,11 @@ licit (CLI)
 ├── logging/         structlog configuración
 ├── provenance/      Trazabilidad de código (Fase 2 — COMPLETADA)
 ├── changelog/       Registro de cambios en configs de agentes (Fase 3 — COMPLETADA)
-├── frameworks/      Evaluadores regulatorios (Fase 4 COMPLETADA, 5 pendiente)
+├── frameworks/      Evaluadores regulatorios (Fases 4-5 COMPLETADAS)
 │   ├── base.py          Protocol ComplianceFramework
 │   ├── registry.py      Registro de frameworks
 │   ├── eu_ai_act/   EU AI Act (Fase 4 — COMPLETADA)
-│   └── owasp_agentic/  OWASP Agentic Top 10 (Fase 5)
+│   └── owasp_agentic/  OWASP Agentic Top 10 (Fase 5 — COMPLETADA)
 ├── connectors/      Integraciones opcionales (Fase 7)
 └── reports/         Generación de reportes (Fase 6)
 ```
@@ -79,7 +79,7 @@ Proyecto del usuario
 └─────────────────┘                  └──────────────────┘  └───────────────────┘
 ```
 
-## Módulos implementados (Fases 1-4)
+## Módulos implementados (Fases 1-5)
 
 ### config/ — Configuración
 
@@ -124,10 +124,13 @@ Proyecto del usuario
 - **`eu_ai_act/fria.py`**: `FRIAGenerator` — cuestionario interactivo de 5 pasos, 16 preguntas, auto-detección de 8 campos, generación de reporte Jinja2.
 - **`eu_ai_act/annex_iv.py`**: `AnnexIVGenerator` — auto-puebla documentación técnica desde metadatos del proyecto (27 variables de template).
 - **`eu_ai_act/templates/`**: 3 templates Jinja2 (FRIA report, Annex IV, report section).
+- **`owasp_agentic/requirements.py`**: 10 `ControlRequirement` (ASI01–ASI10). 10 categorías: access-control, input-security, supply-chain, observability, output-security, human-oversight, isolation, resource-limits, error-handling, data-protection.
+- **`owasp_agentic/evaluator.py`**: `OWASPAgenticEvaluator` — dispatch dinámico via `getattr(self, f"_eval_{id}")`. Scoring por control con thresholds variables (ASI08/ASI09 usan `compliant_at=2`, el resto `compliant_at=3`). Helpers: `_score_to_status()`, `_safe_float()`.
+- **`owasp_agentic/templates/`**: 1 template Jinja2 (report section, alineado con EU AI Act).
 
 ### cli.py — Interfaz de línea de comandos
 
-10 comandos registrados con Click. Ocho funcionales: `init`, `status`, `connect`, `trace`, `changelog`, `fria`, `annex-iv`, `verify`. Los demás (`report`, `gaps`) tienen firmas completas y help text, pero dependen de módulos de fases futuras.
+10 comandos registrados con Click. Ocho funcionales: `init`, `status`, `connect`, `trace`, `changelog`, `fria`, `annex-iv`, `verify`. Los demás (`report`, `gaps`) tienen firmas completas y help text, pero dependen de módulos de fases futuras. `verify` evalúa tanto EU AI Act como OWASP Agentic Top 10.
 
 ## Fases de implementación
 
@@ -137,7 +140,7 @@ Proyecto del usuario
 | 2 | Provenance | **COMPLETADA** | git_analyzer, heuristics, store JSONL, HMAC, attestation, session readers, report |
 | 3 | Changelog | **COMPLETADA** | watcher, differ semántico, classifier (MAJOR/MINOR/PATCH), renderer (MD/JSON) |
 | 4 | EU AI Act | **COMPLETADA** | Protocol, registry, evaluador (11 artículos), FRIA interactivo, Annex IV, templates Jinja2 |
-| 5 | OWASP | Pendiente | Evaluador OWASP Agentic Top 10 |
+| 5 | OWASP | **COMPLETADA** | Evaluador OWASP Agentic Top 10 (10 controles), scoring por riesgo, template Jinja2 |
 | 6 | Reports | Pendiente | Reporte unificado, gap analyzer, Markdown/JSON/HTML |
 | 7 | Connectors | Pendiente | Integración con architect y vigil |
 
@@ -169,7 +172,9 @@ Phase 4: frameworks/eu_ai_act ← core/* + evidence (COMPLETADA)
          eu_ai_act/evaluator.py ← requirements + core/* + evidence
          eu_ai_act/fria.py ← core/project + core/evidence + jinja2
          eu_ai_act/annex_iv.py ← core/project + core/evidence + jinja2
-Phase 5: frameworks/owasp ← core/* + evidence + frameworks/base
+Phase 5: frameworks/owasp ← core/* + evidence + frameworks/base (COMPLETADA)
+         owasp_agentic/requirements.py ← core/models
+         owasp_agentic/evaluator.py ← requirements + core/* + evidence
 Phase 6: reports ← frameworks/* + evidence + core/models
 Phase 7: connectors ← config (independiente)
 ```
@@ -216,15 +221,19 @@ licit-cli/
 │       │   ├── differ.py       # Diffing semántico (YAML/JSON/MD/text)
 │       │   ├── classifier.py   # Clasificación MAJOR/MINOR/PATCH
 │       │   └── renderer.py     # Rendering Markdown + JSON
-│       ├── frameworks/         # Fase 4 (COMPLETADA)
+│       ├── frameworks/         # Fases 4-5 (COMPLETADAS)
 │       │   ├── base.py        # Protocol ComplianceFramework
 │       │   ├── registry.py    # FrameworkRegistry
-│       │   └── eu_ai_act/     # EU AI Act (Fase 4)
-│       │       ├── requirements.py  # 11 requisitos evaluables
-│       │       ├── evaluator.py     # Evaluador por artículo
-│       │       ├── fria.py          # Generador FRIA interactivo
-│       │       ├── annex_iv.py      # Generador Annex IV
-│       │       └── templates/       # Jinja2 (FRIA, Annex IV, report section)
+│       │   ├── eu_ai_act/     # EU AI Act (Fase 4)
+│       │   │   ├── requirements.py  # 11 requisitos evaluables
+│       │   │   ├── evaluator.py     # Evaluador por artículo
+│       │   │   ├── fria.py          # Generador FRIA interactivo
+│       │   │   ├── annex_iv.py      # Generador Annex IV
+│       │   │   └── templates/       # Jinja2 (FRIA, Annex IV, report section)
+│       │   └── owasp_agentic/ # OWASP Agentic Top 10 (Fase 5)
+│       │       ├── requirements.py  # 10 riesgos como ControlRequirements
+│       │       ├── evaluator.py     # Evaluador por riesgo de seguridad
+│       │       └── templates/       # Jinja2 (report section)
 │       ├── connectors/         # (Fase 7)
 │       └── reports/            # (Fase 6)
 └── tests/
@@ -255,10 +264,14 @@ licit-cli/
     │   ├── test_qa_edge_cases.py   # Tests QA Phase 3 (27)
     │   └── fixtures/               # Datos de test
     └── test_frameworks/
-        └── test_eu_ai_act/
-            ├── test_evaluator.py       # Tests evaluador (32)
-            ├── test_fria.py            # Tests FRIA (23)
-            ├── test_annex_iv.py        # Tests Annex IV (17)
-            ├── test_requirements.py    # Tests requirements (9)
-            └── test_qa_edge_cases.py   # Tests QA Phase 4 (43)
+        ├── test_eu_ai_act/
+        │   ├── test_evaluator.py       # Tests evaluador (32)
+        │   ├── test_fria.py            # Tests FRIA (23)
+        │   ├── test_annex_iv.py        # Tests Annex IV (17)
+        │   ├── test_requirements.py    # Tests requirements (9)
+        │   └── test_qa_edge_cases.py   # Tests QA Phase 4 (43)
+        └── test_owasp/
+            ├── test_evaluator.py       # Tests evaluador OWASP (40)
+            ├── test_requirements.py    # Tests requirements OWASP (15)
+            └── test_qa_edge_cases.py   # Tests QA Phase 5 (48)
 ```

@@ -35,7 +35,7 @@ python -m licit [opciones] <comando> [argumentos]
 
 ```bash
 licit --version
-# licit, version 0.4.0
+# licit, version 0.5.0
 
 licit --verbose status
 # Muestra logs de debug durante la ejecución
@@ -472,7 +472,7 @@ EU AI Act Compliance Gaps:
 
 Verifica compliance y devuelve código de salida para CI/CD.
 
-> **Estado**: **Funcional para EU AI Act** (Fase 4). Evaluación OWASP pendiente (Fase 5).
+> **Estado**: **Funcional** (Fases 4-5). Evalúa EU AI Act (11 artículos) y OWASP Agentic Top 10 (10 riesgos).
 
 ```bash
 licit verify [--framework {eu-ai-act|owasp|all}]
@@ -508,4 +508,4 @@ licit verify [--framework {eu-ai-act|owasp|all}]
 | `annex-iv` | 4 | **Funcional** | Documentación técnica Anexo IV |
 | `report` | 6 | Skeleton | Reporte unificado de compliance |
 | `gaps` | 6 | Skeleton | Brechas de compliance |
-| `verify` | 4 | **Funcional (EU AI Act)** | Gate de CI/CD |
+| `verify` | 4-5 | **Funcional (EU AI Act + OWASP)** | Gate de CI/CD |

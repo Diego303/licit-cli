@@ -13,14 +13,14 @@
 | **Phase 2** | Provenance | **COMPLETADA + QA** | 167/167 | 10 source + 7 test |
 | **Phase 3** | Changelog | **COMPLETADA + QA** | 93/93 | 5 source + 11 test |
 | **Phase 4** | EU AI Act | **COMPLETADA + QA** | 124/124 | 9 source + 3 templates + 5 test |
-| Phase 5 | OWASP Agentic | Pendiente | — | — |
+| **Phase 5** | OWASP Agentic | **COMPLETADA + QA** | 103/103 | 3 source + 1 template + 3 test |
 | Phase 6 | Reports + Gap Analyzer | Pendiente | — | — |
 | Phase 7 | Connectors + Integration | Pendiente | — | — |
 
 **Verificación de calidad:**
 - `ruff check src/licit/` — Sin errores
-- `mypy src/licit/ --strict` — Sin errores (0 issues en 39 archivos)
-- `pytest tests/ -q` — 497 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3 + 124 Phase 4)
+- `mypy src/licit/ --strict` — Sin errores (0 issues en 41 archivos)
+- `pytest tests/ -q` — 600 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3 + 124 Phase 4 + 103 Phase 5)
 
 ---
 
@@ -39,7 +39,7 @@ completo del CLI con los 10 comandos, y sistema de logging.
 
 Se configuró el proyecto completo con hatchling como build system:
 - Nombre del paquete: `licit-ai-cli`
-- Versión: `0.4.0`
+- Versión: `0.5.0`
 - Python: `>=3.12`
 - 6 dependencias runtime: click, pydantic, structlog, pyyaml, jinja2, cryptography
 - 4 dependencias dev: pytest, pytest-cov, ruff, mypy
@@ -1002,7 +1002,175 @@ escritura de 43 tests de edge cases, y prueba de integración end-to-end con git
 
 ---
 
-## Phase 5 — OWASP Agentic (PENDIENTE)
+## Phase 5 — OWASP Agentic Top 10 (COMPLETADA)
+
+### Objetivo
+Implementar el framework OWASP Agentic Top 10: 10 requisitos de seguridad para agentes de IA,
+evaluador con scoring por control, y template Jinja2 para reportes — siguiendo exactamente
+los patrones establecidos en Phase 4 (EU AI Act).
+
+### Módulos Implementados
+
+#### P5.1 — OWASP Agentic Requirements
+
+**Archivo:** `src/licit/frameworks/owasp_agentic/requirements.py`
+
+10 requisitos como `ControlRequirement` dataclasses:
+
+| ID | Referencia | Nombre | Categoría |
+|----|-----------|--------|-----------|
+| ASI01 | ASI-01 | Excessive Agency | access-control |
+| ASI02 | ASI-02 | Prompt Injection | input-security |
+| ASI03 | ASI-03 | Supply Chain Vulnerabilities | supply-chain |
+| ASI04 | ASI-04 | Insufficient Logging and Monitoring | observability |
+| ASI05 | ASI-05 | Improper Output Handling | output-security |
+| ASI06 | ASI-06 | Lack of Human Oversight | human-oversight |
+| ASI07 | ASI-07 | Insufficient Sandboxing | isolation |
+| ASI08 | ASI-08 | Unbounded Resource Consumption | resource-limits |
+| ASI09 | ASI-09 | Poor Error Handling | error-handling |
+| ASI10 | ASI-10 | Sensitive Data Exposure | data-protection |
+
+**Constantes:** `OWASP_AGENTIC_FRAMEWORK = "owasp-agentic"`, `OWASP_AGENTIC_VERSION = "2025"`
+
+**Helpers:** `get_requirement(id)` y `get_requirements_by_category(category)`.
+
+#### P5.2 — OWASP Agentic Evaluator
+
+**Archivo:** `src/licit/frameworks/owasp_agentic/evaluator.py`
+
+`OWASPAgenticEvaluator` — Implementa `ComplianceFramework` Protocol. Evalúa los 10 controles
+usando dispatch dinámico: `getattr(self, f"_eval_{id.lower()}")`.
+
+**Scoring por control:**
+
+| Control | Indicadores (score) | Compliant at | Partial at |
+|---------|-------------------|-------------|------------|
+| ASI01 | Guardrails +1, quality gates +1, budget +1, agent configs +1 (max 4) | 3+ | 1+ |
+| ASI02 | vigil +2, guardrails +1, human review +1 (max 4) | 3+ | 1+ |
+| ASI03 | SCA tools (Snyk/Semgrep/CodeQL/Trivy) +2, changelog +1, agent configs +1 (max 4) | 3+ | 1+ |
+| ASI04 | Git +1, audit trail +2, provenance +1, OTel +1 (max 5) | 3+ | 1+ |
+| ASI05 | Human review +2, quality gates +1, test framework +1 (max 4) | 3+ | 1+ |
+| ASI06 | Human review +2, dry-run +1, quality gates +1, rollback +1 (max 5) | 3+ | 1+ |
+| ASI07 | Guardrails +2, CI/CD +1, agent configs +1 (max 4) | 3+ | 1+ |
+| ASI08 | Budget limits +2, quality gates +1 (max 3) | 2+ | 1+ |
+| ASI09 | Test suite +1, CI/CD +1, rollback +1 (max 3) | 2+ | 1+ |
+| ASI10 | Guardrails +1, security scanning +2, agent configs +1 (max 4) | 3+ | 1+ |
+
+**Helpers:**
+- `_score_to_status(score, *, compliant_at, partial_at)` — Misma función que EU AI Act
+- `_safe_float(value, *, field)` — Conversión segura con logging de tipos inesperados
+
+**Robustez:**
+- Thresholds ajustados por control: ASI08 y ASI09 usan `compliant_at=2` (menos señales disponibles)
+- `guardrail_count=0` con `has_guardrails=True` produce "configured" en vez de "0 rules"
+- Cada método genera recomendaciones accionables específicas al riesgo OWASP
+- `_safe_float` acepta parámetro `field` para logging contextual (no hardcoded)
+
+#### P5.3 — Jinja2 Template
+
+**Archivo:** `src/licit/frameworks/owasp_agentic/templates/report_section.md.j2`
+
+Template alineado al formato exacto de EU AI Act (`report_section.md.j2`):
+- Summary table (compliant/partial/non-compliant/n-a/not-evaluated + compliance rate)
+- Per-requirement details con status, reference, evidence, recommendations
+- Mismo nivel de headings (`### `), mismo formato de status (`{{ result.status }}`)
+
+#### P5.4 — CLI Integration
+
+**Archivo:** `src/licit/cli.py` (modificado)
+
+- `_get_frameworks()`: Import directo de `OWASPAgenticEvaluator` (eliminado `# type: ignore[import-not-found]`)
+- `licit verify --framework owasp`, `licit report --framework owasp`, `licit gaps --framework owasp` ahora funcionales
+- `licit init --framework owasp` configura solo OWASP
+
+#### P5.5 — Test Infrastructure Updates
+
+**Archivo:** `tests/conftest.py` (modificado)
+
+`make_evidence()` expandido con 5 nuevos parámetros para cobertura completa de `EvidenceBundle`:
+- `has_otel: bool`
+- `has_requirements_traceability: bool`
+- `security_findings_total: int`
+- `security_findings_critical: int`
+- `security_findings_high: int`
+
+### Tests (103 total de Phase 5)
+
+| Archivo | # Tests | Qué cubre |
+|---------|---------|-----------|
+| `tests/test_frameworks/test_owasp/test_evaluator.py` | 40 | Properties (4), full evaluation (5), ASI01-ASI10 compliant/partial/non-compliant (31) |
+| `tests/test_frameworks/test_owasp/test_requirements.py` | 15 | Data integrity (9), get_requirement (3), get_by_category (3) |
+| `tests/test_frameworks/test_owasp/test_qa_edge_cases.py` | 48 | Protocol conformance (3), _score_to_status boundaries (8), _safe_float robustness (8), evaluator edge cases (17), registry interop (3), CLI integration (3), requirements integrity (4), cross-module (3) |
+
+### Decisiones Técnicas
+
+1. **OWASP version "2025"** — El plan referenciaba `top10_2026.json` pero la referencia real
+   del OWASP Agentic Top 10 es 2025. Se usó el año correcto.
+
+2. **Requirements como código, no JSON** — Definidos como constantes Python en `requirements.py`
+   (mismo patrón que EU AI Act), no como archivo JSON externo. Más type-safe y testeable.
+
+3. **Thresholds variables por control** — ASI08 (max score 3) y ASI09 (max score 3) usan
+   `compliant_at=2` porque tienen menos señales de evidencia disponibles. Los demás usan
+   `compliant_at=3` con max scores de 4-5.
+
+4. **Scoring basado en presencia, no en hallazgos** — El evaluador verifica que las herramientas
+   de seguridad *existan* (has_vigil, has_snyk), no qué *encontraron* (security_findings_*).
+   Los findings son relevantes para Phase 6 (Gap Analyzer). Decisión consciente documentada con
+   test negativo `test_security_findings_do_not_affect_scoring`.
+
+5. **Template alineado con EU AI Act** — Inicialmente el template OWASP tenía formato distinto
+   (em dash, `####` headings, `status.value`). QA detectó la inconsistencia y se alineó al
+   formato exacto de EU AI Act para que Phase 6 los consuma uniformemente.
+
+### QA Hardening (post-implementación)
+
+Se realizó una revisión de QA completa: verificación estática (`ruff --select ALL` +
+`mypy --strict`), análisis línea por línea de cada archivo, ejecución de 594 tests existentes,
+escritura de 48 tests de edge cases, corrección de 3 bugs, y prueba de integración end-to-end
+con git repo real.
+
+#### Bugs encontrados y corregidos
+
+| # | Severidad | Archivo | Problema | Corrección |
+|---|-----------|---------|----------|------------|
+| 1 | **Media** | `templates/report_section.md.j2` | Template inconsistente con EU AI Act: headers (`##` vs `###`), `status.value` vs `status`, em dash vs parentheses | Alineado al formato exacto de EU AI Act |
+| 2 | **Baja** | `evaluator.py` | `_safe_float` hardcodeaba `field="ai_percentage"` en log — nombre genérico con log específico | Añadido parámetro `field` con default `"unknown"` |
+| 3 | **Baja** | `evaluator.py` | `has_guardrails=True, guardrail_count=0` producía "0 rules" — misleading | Branch condicional: count>0 → "N rules", else → "configured" |
+
+#### Tests de QA añadidos (48 nuevos)
+
+**Archivo:** `tests/test_frameworks/test_owasp/test_qa_edge_cases.py`
+
+| Clase | # Tests | Cobertura |
+|-------|---------|-----------|
+| `TestProtocolConformance` | 3 | `isinstance()` check, evaluate signature, get_requirements types |
+| `TestScoreToStatus` | 8 | Boundaries: 0, partial, between, compliant, above, negative, equal thresholds, ASI08 thresholds |
+| `TestSafeFloat` | 8 | int, float, zero, string, None, list, bool, negative float |
+| `TestEvaluatorEdgeCases` | 17 | provenance_stats string/None/missing, OTel bonus, SCA tools listing, CI/CD platform display, test framework display, actionable recommendations, all-compliant 10/10, all-non-compliant 10/10, idempotency, compliant→empty recs, non-compliant→has recs, security_findings neutral, guardrail_count=0, template rendering |
+| `TestFrameworkRegistry` | 3 | Register OWASP, register both frameworks, no ID collision |
+| `TestCLIIntegration` | 3 | `verify --framework owasp`, `verify --framework all`, bare project exit code 1 |
+| `TestRequirementsIntegrity` | 4 | All IDs have evaluator method, framework consistent, categories valid, IDs sequential |
+| `TestCrossModule` | 3 | ControlResult → GapItem, ControlResult → ComplianceSummary, dual-framework evaluation |
+
+#### Verificación estática final
+
+| Herramienta | Resultado |
+|-------------|-----------|
+| `ruff check src/licit/` | 0 errores |
+| `mypy --strict src/licit/` | 0 errores en 41 archivos |
+| `pytest tests/` | 600 tests passed |
+| E2E real git repo | `verify --framework owasp` → 1 compliant, 7 partial, 2 non-compliant (exit 1) |
+
+#### Riesgos residuales
+
+| Riesgo | Impacto | Nota |
+|--------|---------|------|
+| `security_findings_*` no usados en scoring | Diseño | Evaluador mide presencia de herramientas, no hallazgos; Phase 6 Gap Analyzer los usará |
+| `_eval_asi06` y `_eval_asi08` no usan `ctx` | Cosmético | Dispatch pattern requiere firma uniforme `(req, ctx, ev)`; correcto |
+| Overlap temático con EU AI Act (Human Oversight, Logging) | Diseño | Scoring diferente — OWASP enfoca seguridad, EU AI Act enfoca governance; frameworks independientes |
+
+---
 
 ## Phase 6 — Reports + Gap Analyzer (PENDIENTE)
 

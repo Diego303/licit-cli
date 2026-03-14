@@ -91,13 +91,13 @@ Algunos comandos están **registrados** en el CLI pero su implementación comple
 |---|---|---|
 | `trace` | 2 | **Funcional** (v0.2.0) |
 | `changelog` | 3 | **Funcional** (v0.3.0) |
-| `fria` | 4 | Skeleton |
-| `annex-iv` | 4 | Skeleton |
+| `fria` | 4 | **Funcional** (v0.4.0) |
+| `annex-iv` | 4 | **Funcional** (v0.4.0) |
+| `verify` | 4-5 | **Funcional** (v0.5.0 — EU AI Act + OWASP) |
 | `report` | 6 | Skeleton |
 | `gaps` | 6 | Skeleton |
-| `verify` | 6 | Skeleton |
 
-Los comandos funcionales en v0.4.0 son: `init`, `status`, `connect`, `trace`, `changelog`, `fria`, `annex-iv`, `verify`.
+Los comandos funcionales en v0.5.0 son: `init`, `status`, `connect`, `trace`, `changelog`, `fria`, `annex-iv`, `verify`.
 
 ### `licit init` no detecta mi lenguaje/framework
 
@@ -164,7 +164,7 @@ from licit.reports.unified import (  # type: ignore[import-not-found]
 
 El comentario `type: ignore` debe ir en la línea del `from`, no en las líneas de los nombres importados. Si ruff reformatea el import a multilínea, verifica que el comentario quede en la línea correcta.
 
-> **Nota**: Los módulos de Fases 2-4 (provenance, changelog, eu_ai_act) ya están implementados y se importan directamente sin `type: ignore`. Solo `reports/` (Phase 6) y `owasp_agentic/` (Phase 5) usan stubs lazy.
+> **Nota**: Los módulos de Fases 2-5 (provenance, changelog, eu_ai_act, owasp_agentic) ya están implementados y se importan directamente sin `type: ignore`. Solo `reports/` (Phase 6) usa stubs lazy.
 
 ### ruff reporta UP042 en mis enums
 
@@ -242,7 +242,7 @@ Los archivos que **no** debes commitear:
 
 ---
 
-## Problemas conocidos (v0.4.0)
+## Problemas conocidos (v0.5.0)
 
 | Problema | Estado | Workaround |
 |---|---|---|

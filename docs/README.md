@@ -41,10 +41,10 @@ licit report
 
 ## Versión actual
 
-- **v0.4.0** — Fases 1-4 completadas (Foundation + Provenance + Changelog + EU AI Act)
+- **v0.5.0** — Fases 1-5 completadas (Foundation + Provenance + Changelog + EU AI Act + OWASP Agentic Top 10)
 - Python 3.12+ requerido
 - 10 comandos CLI registrados, 8 funcionales (`init`, `status`, `connect`, `trace`, `changelog`, `fria`, `annex-iv`, `verify`)
-- 497 tests, mypy strict, ruff clean
+- 600 tests, mypy strict, ruff clean
 
 ## Licencia
 

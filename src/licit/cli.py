@@ -546,9 +546,7 @@ def _get_frameworks(framework: str, config: LicitConfig) -> list[Any]:
 
         frameworks.append(EUAIActEvaluator())
     if framework in ("owasp", "all") and config.frameworks.owasp_agentic:
-        from licit.frameworks.owasp_agentic.evaluator import (  # type: ignore[import-not-found]
-            OWASPAgenticEvaluator,
-        )
+        from licit.frameworks.owasp_agentic.evaluator import OWASPAgenticEvaluator
 
         frameworks.append(OWASPAgenticEvaluator())
     return frameworks
