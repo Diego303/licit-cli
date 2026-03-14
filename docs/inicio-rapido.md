@@ -15,7 +15,7 @@ pip install licit-ai-cli
 Verifica:
 ```bash
 licit --version
-# licit, version 0.4.0
+# licit, version 0.5.0
 ```
 
 ---

@@ -102,46 +102,87 @@ licit annex-iv --organization "Mi Empresa" --product "Mi Producto"
 
 ---
 
-## OWASP Agentic Top 10
+## OWASP Agentic Top 10 (2025)
 
 ### Alcance
 
-El OWASP Agentic Top 10 identifica los 10 principales riesgos de seguridad en aplicaciones que usan agentes IA. licit evalúa la postura del proyecto contra cada riesgo.
+El OWASP Top 10 for Agentic AI Security identifica los 10 principales riesgos de seguridad en aplicaciones que usan agentes IA. licit evalúa la postura del proyecto contra cada riesgo con scoring numérico.
+
+> **Estado**: **Implementado** desde v0.5.0. Ejecuta con `licit verify --framework owasp`.
 
 ### Riesgos evaluados
 
 | ID | Riesgo | Qué evalúa licit |
 |---|---|---|
-| ASI-01 | Excessive Agency | Guardrails, archivos protegidos, comandos bloqueados |
-| ASI-02 | Uncontrolled Autonomy | Límites de presupuesto, dry-run, aprobación humana |
-| ASI-03 | Supply Chain Vulnerabilities | Herramientas de seguridad (Semgrep, Snyk, etc.) |
-| ASI-04 | Improper Output Handling | Validación de outputs, quality gates |
-| ASI-05 | Insecure Communication | Configuración de conectores, protección de datos |
-| ASI-06 | Insufficient Monitoring | Audit trail, logging, OpenTelemetry |
-| ASI-07 | Identity and Access Mismanagement | Permisos de agentes, scope de acceso |
-| ASI-08 | Inadequate Sandboxing | Aislamiento de ejecución, rollback capability |
-| ASI-09 | Prompt Injection | Validación de inputs, configuración de guardrails |
-| ASI-10 | Insufficient Logging | Logs estructurados, trazabilidad de sesiones |
+| ASI01 | Excessive Agency | Guardrails, quality gates, budget limits, agent configs |
+| ASI02 | Prompt Injection | vigil scanning, guardrails, human review gate |
+| ASI03 | Supply Chain Vulnerabilities | SCA tools (Snyk/Semgrep/CodeQL/Trivy), changelog, config versioning |
+| ASI04 | Insufficient Logging & Monitoring | Git history, audit trail, provenance, OTel |
+| ASI05 | Improper Output Handling | Human review gate, quality gates, test suite |
+| ASI06 | Lack of Human Oversight | Human review gate, dry-run, quality gates, rollback |
+| ASI07 | Insufficient Sandboxing | Guardrails (blocked commands, protected files), CI/CD, agent configs |
+| ASI08 | Unbounded Resource Consumption | Budget limits, quality gates |
+| ASI09 | Poor Error Handling | Test suite, CI/CD, rollback capability |
+| ASI10 | Sensitive Data Exposure | Protected file guardrails, security scanning, agent scope |
+
+### Scoring del evaluador
+
+Cada riesgo tiene un método de evaluación dedicado con scoring numérico. El score se convierte a status con `_score_to_status(score, compliant_at, partial_at)`:
+
+| Riesgo | Indicadores (score) | Compliant at | Partial at |
+|---|---|---|---|
+| ASI01 | Guardrails +1, quality gates +1, budget +1, agent configs +1 | 3+ | 1+ |
+| ASI02 | vigil +2, guardrails +1, human review +1 | 3+ | 1+ |
+| ASI03 | SCA tools +2, changelog +1, agent configs +1 | 3+ | 1+ |
+| ASI04 | Git +1, audit trail +2, provenance +1, OTel +1 | 3+ | 1+ |
+| ASI05 | Human review +2, quality gates +1, test suite +1 | 3+ | 1+ |
+| ASI06 | Human review +2, dry-run +1, quality gates +1, rollback +1 | 3+ | 1+ |
+| ASI07 | Guardrails +2, CI/CD +1, agent configs +1 | 3+ | 1+ |
+| ASI08 | Budget limits +2, quality gates +1 | 2+ | 1+ |
+| ASI09 | Test suite +1, CI/CD +1, rollback +1 | 2+ | 1+ |
+| ASI10 | Guardrails +1, security scanning +2, agent configs +1 | 3+ | 1+ |
+
+ASI08 y ASI09 usan `compliant_at=2` porque tienen menos señales disponibles. El evaluador genera recomendaciones accionables con herramientas concretas (ej: "Add AI-specific security scanning: vigil detects prompt injection patterns").
+
+**Nota de diseño**: El evaluador mide la *presencia* de herramientas de seguridad, no sus *hallazgos*. Un proyecto con vigil instalado pero 50 findings críticos obtiene el mismo score que uno con 0 findings. Los hallazgos son relevantes para el gap analyzer (Phase 6).
 
 ### Mapeo a evidencia
 
-Cada riesgo OWASP se mapea a evidencia recopilable:
+Cada riesgo OWASP se mapea a evidencia recopilable del `ProjectContext` y `EvidenceBundle`:
 
 ```
-ASI-01 (Excessive Agency)
-  ├── has_guardrails → ¿Hay guardrails configurados?
-  ├── guardrail_count → ¿Cuántos controles existen?
-  └── has_human_review_gate → ¿Hay revisión humana?
+ASI01 (Excessive Agency)
+  ├── ev.has_guardrails + ev.guardrail_count
+  ├── ev.has_quality_gates + ev.quality_gate_count
+  ├── ev.has_budget_limits
+  └── ctx.agent_configs
 
-ASI-02 (Uncontrolled Autonomy)
-  ├── has_budget_limits → ¿Hay límites de presupuesto?
-  ├── has_dry_run → ¿Existe modo dry-run?
-  └── has_rollback → ¿Hay capacidad de rollback?
+ASI02 (Prompt Injection)
+  ├── ctx.security.has_vigil (+2 — AI-specific scanning)
+  ├── ev.has_guardrails
+  └── ev.has_human_review_gate
 
-ASI-06 (Insufficient Monitoring)
-  ├── has_audit_trail → ¿Hay trail de auditoría?
-  ├── audit_entry_count → ¿Cuántas entradas?
-  └── has_otel → ¿Hay instrumentación OpenTelemetry?
+ASI04 (Logging & Monitoring)
+  ├── ctx.git_initialized + ctx.total_commits
+  ├── ev.has_audit_trail + ev.audit_entry_count (+2)
+  ├── ev.has_provenance + ev.provenance_stats
+  └── ev.has_otel
+
+ASI06 (Human Oversight)
+  ├── ev.has_human_review_gate (+2 — critical control)
+  ├── ev.has_dry_run
+  ├── ev.has_quality_gates
+  └── ev.has_rollback
+
+ASI08 (Unbounded Resources)
+  ├── ev.has_budget_limits (+2 — direct control)
+  └── ev.has_quality_gates
+```
+
+**Comando:**
+```bash
+licit verify --framework owasp   # Evaluar solo OWASP
+licit verify --framework all     # Evaluar EU AI Act + OWASP
 ```
 
 ---
@@ -169,7 +210,7 @@ ASI-06 (Insufficient Monitoring)
 | CI/CD configs | Human review gates, steps de seguridad | **Funcional** (v0.1.0) |
 | Architect reports | Audit trail, calidad de ejecución | Fase 7 |
 | SARIF files | Hallazgos de seguridad (vulnerabilidades) | Fase 7 |
-| `.licit/` data | FRIA, Annex IV, changelog, provenance store | **Funcional** (v0.4.0 — todos los generadores operativos) |
+| `.licit/` data | FRIA, Annex IV, changelog, provenance store | **Funcional** (v0.4.0+) |
 
 La evidencia de provenance (`licit trace`) alimenta directamente los artículos de transparencia (Art. 13) y trazabilidad (Art. 10) del EU AI Act. El changelog de configs (`licit changelog`) alimenta los artículos de transparencia (Art. 13) y obligaciones de deployers (Art. 26). Ambos alimentan los controles de monitoring (ASI-06, ASI-10) del OWASP Agentic Top 10.
 

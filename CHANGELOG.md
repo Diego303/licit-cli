@@ -9,6 +9,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [0.5.0] — 2026-03-14
+
+### Added
+
+#### Phase 5 — OWASP Agentic Top 10 Framework
+
+- **OWASP Agentic requirements** (`src/licit/frameworks/owasp_agentic/requirements.py`)
+  - 10 `ControlRequirement` definitions covering all OWASP Agentic Top 10 risks (ASI01–ASI10).
+  - 10 categories: access-control, input-security, supply-chain, observability, output-security, human-oversight, isolation, resource-limits, error-handling, data-protection.
+  - Reference: OWASP Top 10 for Agentic AI Security (2025).
+  - Helper functions: `get_requirement(id)` and `get_requirements_by_category(category)`.
+- **OWASP Agentic evaluator** (`src/licit/frameworks/owasp_agentic/evaluator.py`)
+  - `OWASPAgenticEvaluator` with dynamic method dispatch via `getattr(self, f"_eval_{id}")` — same pattern as EU AI Act evaluator.
+  - Dedicated evaluation methods for all 10 risks with scoring logic:
+    - ASI01: Excessive Agency (guardrails +1, quality gates +1, budget +1, agent configs +1; compliant at 3+).
+    - ASI02: Prompt Injection (vigil +2, guardrails +1, human review +1; compliant at 3+).
+    - ASI03: Supply Chain (SCA tools +2, changelog +1, versioned configs +1; compliant at 3+).
+    - ASI04: Logging & Monitoring (git +1, audit trail +2, provenance +1, OTel +1; compliant at 3+).
+    - ASI05: Output Handling (human review +2, quality gates +1, test suite +1; compliant at 3+).
+    - ASI06: Human Oversight (human review +2, dry-run +1, quality gates +1, rollback +1; compliant at 3+).
+    - ASI07: Sandboxing (guardrails +2, CI/CD +1, agent configs +1; compliant at 3+).
+    - ASI08: Resource Consumption (budget limits +2, quality gates +1; compliant at 2+).
+    - ASI09: Error Handling (test suite +1, CI/CD +1, rollback +1; compliant at 2+).
+    - ASI10: Data Exposure (guardrails +1, security scanning +2, agent configs +1; compliant at 3+).
+  - `_score_to_status()` helper with configurable thresholds (same as EU AI Act).
+  - `_safe_float(value, *, field)` for defensive provenance stats access with contextual logging.
+  - Smart evidence messages: `guardrail_count=0` shows "configured" instead of misleading "0 rules".
+- **Jinja2 template** (`src/licit/frameworks/owasp_agentic/templates/report_section.md.j2`)
+  - Report section template aligned with EU AI Act format for uniform Phase 6 consumption.
+  - Summary table + per-requirement details with status, reference, evidence, recommendations.
+
+#### QA Hardening — Phase 5
+
+- **Bug fixes** — 3 issues found and fixed during QA review:
+  - **(Medium)** `report_section.md.j2`: Template format inconsistent with EU AI Act (`####` vs `###` headings, `status.value` vs `status`, em dash vs parentheses) — aligned to match EU AI Act exactly.
+  - **(Low)** `evaluator.py`: `_safe_float` hardcoded `field="ai_percentage"` in debug log despite generic function name — added `field` keyword parameter with default `"unknown"`.
+  - **(Low)** `evaluator.py`: `has_guardrails=True` with `guardrail_count=0` produced "Guardrails limit agent scope: 0 rules" — added conditional branch showing "configured" instead.
+- **103 new Phase 5 tests** across 3 test files:
+  - `test_evaluator.py` (40) — Properties (4), full evaluation (5), ASI01-ASI10 compliance paths (31).
+  - `test_requirements.py` (15) — Data integrity (9), get_requirement (3), get_by_category (3).
+  - `test_qa_edge_cases.py` (48) — Protocol conformance (3), `_score_to_status` boundaries (8), `_safe_float` robustness (8), evaluator edge cases (17: provenance stats, OTel bonus, SCA tools, CI/CD display, idempotency, compliant→empty recs, non-compliant→has recs, security_findings neutrality, guardrail_count=0, template rendering), registry interop (3), CLI integration (3), requirements integrity (4), cross-module (3).
+- **CLI integration** — `licit verify --framework owasp`, `licit report --framework owasp`, and `licit gaps --framework owasp` now fully functional:
+  - Real import replacing `# type: ignore[import-not-found]` stub for `OWASPAgenticEvaluator`.
+- **Test infrastructure** — `conftest.py` `make_evidence()` expanded with 5 new parameters:
+  - `has_otel`, `has_requirements_traceability`, `security_findings_total`, `security_findings_critical`, `security_findings_high` — now covers 100% of `EvidenceBundle` fields.
+
+### Changed
+
+- Test suite expanded from 497 to 600 tests (497 previous + 103 Phase 5).
+- `licit verify --framework owasp` now evaluates 10 OWASP risks and returns exit codes 0/1/2.
+- `licit verify --framework all` now evaluates both EU AI Act (11 articles) and OWASP (10 risks).
+- CLI import for OWASP module changed from lazy `type: ignore` stub to real import.
+- `pyproject.toml` version bumped to `0.5.0`.
+
 ## [0.4.0] — 2026-03-14
 
 ### Added
