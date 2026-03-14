@@ -15,7 +15,7 @@ pip install licit-ai-cli
 Verifica:
 ```bash
 licit --version
-# licit, version 0.3.0
+# licit, version 0.4.0
 ```
 
 ---
@@ -149,25 +149,48 @@ El comando analiza el historial git de los archivos de configuración de agentes
 
 ---
 
+## 7. Completar evaluación de impacto (FRIA)
+
+```bash
+licit fria                # Cuestionario interactivo de 5 pasos
+licit fria --update       # Actualizar FRIA existente
+```
+
+licit auto-detecta respuestas donde puede (modelos usados, guardrails, testing, etc.) y pregunta confirmación. Genera `.licit/fria-data.json` y `.licit/fria-report.md`.
+
+---
+
+## 8. Generar documentación técnica Annex IV
+
+```bash
+licit annex-iv --organization "Mi Empresa" --product "Mi App"
+```
+
+Auto-genera documentación técnica con 6 secciones desde metadatos del proyecto. Incluye recomendaciones para secciones con evidencia faltante. Genera `.licit/annex-iv.md`.
+
+---
+
+## 9. Verificar compliance
+
+```bash
+licit verify --framework eu-ai-act    # Evaluar EU AI Act
+licit verify                          # Evaluar todos los frameworks habilitados
+```
+
+Exit code 0 = compliant, 1 = non-compliant, 2 = partial. Ideal para CI/CD gates.
+
+---
+
 ## ¿Qué sigue?
 
 Una vez completadas las fases futuras de licit, podrás:
 
 ```bash
-# Completar evaluación de impacto (FRIA)
-licit fria
-
-# Generar documentación técnica Annex IV
-licit annex-iv --organization "Mi Empresa" --product "Mi App"
-
-# Ver reporte de compliance
+# Ver reporte unificado de compliance
 licit report
 
-# Identificar brechas
+# Identificar brechas con recomendaciones
 licit gaps
-
-# Gate de CI/CD (exit code 0 = pass)
-licit verify
 ```
 
 ---

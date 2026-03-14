@@ -97,7 +97,7 @@ Algunos comandos están **registrados** en el CLI pero su implementación comple
 | `gaps` | 6 | Skeleton |
 | `verify` | 6 | Skeleton |
 
-Los comandos funcionales en v0.3.0 son: `init`, `status`, `connect`, `trace`, `changelog`.
+Los comandos funcionales en v0.4.0 son: `init`, `status`, `connect`, `trace`, `changelog`, `fria`, `annex-iv`, `verify`.
 
 ### `licit init` no detecta mi lenguaje/framework
 
@@ -154,17 +154,17 @@ El error más común es `ValueError: I/O operation on closed file` cuando Click'
 
 ### mypy muestra errores en imports de módulos futuros
 
-Los imports de módulos de fases futuras (como `licit.frameworks.eu_ai_act`) usan `# type: ignore[import-not-found]`:
+Los imports de módulos de fases futuras (como `licit.reports.unified`) usan `# type: ignore[import-not-found]`:
 
 ```python
-from licit.frameworks.eu_ai_act.fria import (  # type: ignore[import-not-found]
-    FRIAGenerator,
+from licit.reports.unified import (  # type: ignore[import-not-found]
+    UnifiedReportGenerator,
 )
 ```
 
 El comentario `type: ignore` debe ir en la línea del `from`, no en las líneas de los nombres importados. Si ruff reformatea el import a multilínea, verifica que el comentario quede en la línea correcta.
 
-> **Nota**: Los módulos de provenance (Fase 2) y changelog (Fase 3) ya están implementados y se importan sin `type: ignore`.
+> **Nota**: Los módulos de Fases 2-4 (provenance, changelog, eu_ai_act) ya están implementados y se importan directamente sin `type: ignore`. Solo `reports/` (Phase 6) y `owasp_agentic/` (Phase 5) usan stubs lazy.
 
 ### ruff reporta UP042 en mis enums
 
@@ -242,17 +242,18 @@ Los archivos que **no** debes commitear:
 
 ---
 
-## Problemas conocidos (v0.3.0)
+## Problemas conocidos (v0.4.0)
 
 | Problema | Estado | Workaround |
 |---|---|---|
-| Comandos de fases 4-7 muestran error | Esperado | Usar `init`, `status`, `connect`, `trace`, `changelog` |
-| No detecta frameworks Go/Rust/Java | Limitación | Detecta el lenguaje pero no frameworks específicos |
-| Heurísticas de provenance pueden dar falsos positivos | Limitación | Ajustar `confidence_threshold` en config |
-| Session reader solo soporta Claude Code | Limitación | Más readers en fases futuras |
-| FRIA no interactivo | Esperado | Implementación en Fase 4 |
+| Comandos `report` y `gaps` muestran error | Esperado | Dependen de Phase 6 (reports). Usar `verify` para compliance check |
+| No detecta frameworks Go/Rust/Java | Limitacion | Detecta el lenguaje pero no frameworks especificos |
+| Heuristicas de provenance pueden dar falsos positivos | Limitacion | Ajustar `confidence_threshold` en config |
+| Session reader solo soporta Claude Code | Limitacion | Mas readers en fases futuras |
+| Pipe `\|` en nombre de organizacion rompe tabla Markdown en Annex IV | Limitacion | Evitar pipe en nombres de organizacion |
 | Solo formato Markdown para reportes de compliance | Esperado | JSON/HTML en Fase 6 |
-| Markdown differ solo soporta headings ATX (`#`) | Limitación | Los headings setext (`===`/`---`) no se detectan |
+| Markdown differ solo soporta headings ATX (`#`) | Limitacion | Los headings setext (`===`/`---`) no se detectan |
+| FRIA `run_interactive()` requiere terminal | Limitacion | No se puede ejecutar en modo batch; usar `--update` con datos pre-generados |
 
 ---
 

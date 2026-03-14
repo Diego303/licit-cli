@@ -1,0 +1,227 @@
+# Annex IV -- Technical Documentation
+
+**EU AI Act (Regulation 2024/1689)**
+
+| Field | Value |
+|-------|-------|
+| **Organization** | {{ organization }} |
+| **Product** | {{ product_name }} |
+| **Generated** | {{ generated_at }} |
+
+---
+
+## 1. General Description of the AI System
+
+### 1.1 Intended Purpose
+
+The AI system is used for software development assistance in the project
+**{{ project_name }}**. AI agents are employed to generate, modify, and review
+source code as part of the development workflow.
+
+### 1.2 AI Components
+{%- if agent_types %}
+
+The following AI agent types are configured:
+{% for agent in agent_types -%}
+- {{ agent }}
+{% endfor -%}
+{%- else %}
+
+No AI agent configurations detected in the project.
+{%- endif %}
+{%- if has_architect %}
+
+The project uses **architect** for autonomous code generation.
+{%- endif %}
+
+### 1.3 Programming Languages and Frameworks
+{%- if languages %}
+
+- **Languages**: {{ languages | join(', ') }}
+{%- else %}
+
+- **Languages**: Not detected
+{%- endif %}
+{%- if frameworks %}
+- **Frameworks**: {{ frameworks | join(', ') }}
+{%- else %}
+- **Frameworks**: Not detected
+{%- endif %}
+{%- if package_managers %}
+- **Package managers**: {{ package_managers | join(', ') }}
+{%- endif %}
+
+---
+
+## 2. Development Process
+
+### 2.1 Version Control
+{%- if git_initialized %}
+
+- Git repository initialized
+- Total commits: {{ total_commits }}
+- Total contributors: {{ total_contributors }}
+{%- else %}
+
+- No version control detected
+{%- endif %}
+
+### 2.2 AI Code Provenance
+{%- if has_provenance %}
+
+- Provenance tracking enabled via licit
+- Estimated AI-generated code: {{ "%.1f" | format(ai_percentage) }}%
+{%- else %}
+
+- Provenance tracking not yet configured
+- **Recommendation**: Run `licit trace` to begin tracking code provenance
+{%- endif %}
+
+### 2.3 Agent Configuration Files
+{%- if agent_configs %}
+
+The following agent configuration files are present:
+{% for cfg in agent_configs -%}
+- `{{ cfg.path }}` ({{ cfg.agent_type }})
+{% endfor -%}
+{%- else %}
+
+No agent configuration files detected.
+{%- endif %}
+
+---
+
+## 3. Monitoring, Functioning and Control
+
+### 3.1 CI/CD Integration
+
+- **CI/CD platform**: {{ cicd_platform }}
+{%- if cicd_config_path %}
+- **Config path**: `{{ cicd_config_path }}`
+{%- endif %}
+
+### 3.2 Audit Trail
+{%- if has_audit_trail %}
+
+- Structured audit trail with {{ audit_entry_count }} entries
+{%- else %}
+
+- No structured audit trail detected
+- **Recommendation**: Enable audit logging for AI agent actions
+{%- endif %}
+
+### 3.3 Configuration Change Tracking
+{%- if has_changelog %}
+
+- Agent configuration changelog is maintained via licit
+{%- else %}
+
+- **Recommendation**: Run `licit changelog` to track agent config changes
+{%- endif %}
+
+---
+
+## 4. Risk Management
+
+### 4.1 Guardrails
+{%- if has_guardrails %}
+
+- {{ guardrail_count }} guardrail rules configured
+{%- else %}
+
+- No guardrails detected
+- **Recommendation**: Configure guardrails to limit agent behavior
+{%- endif %}
+
+### 4.2 Quality Gates
+{%- if has_quality_gates %}
+
+- {{ quality_gate_count }} quality gates configured
+{%- else %}
+
+- No quality gates detected
+{%- endif %}
+
+### 4.3 Budget Limits
+{%- if has_budget_limits %}
+
+- Budget limits are configured to prevent runaway execution costs
+{%- else %}
+
+- No budget limits detected
+{%- endif %}
+
+### 4.4 Human Oversight
+{%- if has_human_review_gate %}
+
+- Human review is required before AI-generated code reaches production
+{%- else %}
+
+- **Recommendation**: Enable PR review requirements for AI-generated branches
+{%- endif %}
+
+### 4.5 Fundamental Rights Impact Assessment
+{%- if has_fria %}
+
+- FRIA has been completed
+{%- else %}
+
+- FRIA not yet completed
+- **Recommendation**: Run `licit fria` to complete the assessment
+{%- endif %}
+
+---
+
+## 5. Testing and Validation
+
+### 5.1 Test Framework
+{%- if test_framework %}
+
+- **Framework**: {{ test_framework }}
+{%- if test_dirs %}
+- **Test directories**: {{ test_dirs | join(', ') }}
+{%- endif %}
+{%- else %}
+
+- No test framework detected
+- **Recommendation**: Add automated testing for AI-generated code
+{%- endif %}
+
+### 5.2 Security Scanning
+{%- if security_tools %}
+
+The following security tools are configured:
+{% for tool in security_tools -%}
+- {{ tool }}
+{% endfor -%}
+{%- else %}
+
+- No security scanning tools detected
+- **Recommendation**: Add security scanning (vigil, Semgrep, Snyk, or CodeQL)
+{%- endif %}
+
+---
+
+## 6. Changes and Lifecycle
+
+All changes to the AI system configuration and generated code are tracked through:
+{%- if git_initialized %}
+- Git version control ({{ total_commits }} commits)
+{%- endif %}
+{%- if has_provenance %}
+- Code provenance tracking (licit)
+{%- endif %}
+{%- if has_changelog %}
+- Agent configuration changelog (licit)
+{%- endif %}
+{%- if has_audit_trail %}
+- Structured audit trail ({{ audit_entry_count }} entries)
+{%- endif %}
+{%- if not (git_initialized or has_provenance or has_changelog or has_audit_trail) %}
+- No change tracking mechanisms detected
+{%- endif %}
+
+---
+
+*Generated by licit on {{ generated_at }}*
+*EU AI Act Annex IV -- Technical Documentation*

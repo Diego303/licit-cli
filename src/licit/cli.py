@@ -239,9 +239,9 @@ def fria(ctx: click.Context, update: bool) -> None:
     context = detector.detect(root)
     evidence = EvidenceCollector(root, context).collect()
 
-    from licit.frameworks.eu_ai_act.fria import FRIAGenerator  # type: ignore[import-not-found]
+    from licit.frameworks.eu_ai_act.fria import FRIAGenerator
 
-    generator: Any = FRIAGenerator(context, evidence)
+    generator = FRIAGenerator(context, evidence)
 
     if update and Path(config.fria.data_path).exists():
         import json
@@ -282,11 +282,9 @@ def annex_iv(ctx: click.Context, organization: str | None, product: str | None) 
     context = detector.detect(root)
     evidence = EvidenceCollector(root, context).collect()
 
-    from licit.frameworks.eu_ai_act.annex_iv import (  # type: ignore[import-not-found]
-        AnnexIVGenerator,
-    )
+    from licit.frameworks.eu_ai_act.annex_iv import AnnexIVGenerator
 
-    generator: Any = AnnexIVGenerator(context, evidence)
+    generator = AnnexIVGenerator(context, evidence)
 
     org = organization or config.annex_iv.organization or context.name
     prod = product or config.annex_iv.product_name or context.name
@@ -544,9 +542,7 @@ def _get_frameworks(framework: str, config: LicitConfig) -> list[Any]:
     """
     frameworks: list[Any] = []
     if framework in ("eu-ai-act", "all") and config.frameworks.eu_ai_act:
-        from licit.frameworks.eu_ai_act.evaluator import (  # type: ignore[import-not-found]
-            EUAIActEvaluator,
-        )
+        from licit.frameworks.eu_ai_act.evaluator import EUAIActEvaluator
 
         frameworks.append(EUAIActEvaluator())
     if framework in ("owasp", "all") and config.frameworks.owasp_agentic:

@@ -35,7 +35,7 @@ python -m licit [opciones] <comando> [argumentos]
 
 ```bash
 licit --version
-# licit, version 0.3.0
+# licit, version 0.4.0
 
 licit --verbose status
 # Muestra logs de debug durante la ejecución
@@ -313,7 +313,7 @@ Para documentación detallada del sistema de changelog, ver [Changelog](../docs/
 
 Completa la Evaluación de Impacto en Derechos Fundamentales (EU AI Act Artículo 27).
 
-> **Estado**: Registrado en CLI. Funcional a partir de Fase 4.
+> **Estado**: **Funcional** (Fase 4 completada).
 
 ```bash
 licit fria [--update]
@@ -325,9 +325,45 @@ licit fria [--update]
 |---|---|
 | `--update` | Actualiza un FRIA existente en lugar de crear uno nuevo |
 
+**Qué hace:**
+1. Detecta el proyecto y recopila evidencia disponible.
+2. Ejecuta un cuestionario interactivo de 5 pasos (16 preguntas).
+3. Auto-detecta respuestas donde es posible (8 campos: system_purpose, ai_technology, models_used, human_review, guardrails, security_scanning, testing, audit_trail).
+4. Guarda datos en `.licit/fria-data.json` y genera reporte en `.licit/fria-report.md`.
+
+**5 pasos del cuestionario:**
+
+| Paso | Título | Preguntas |
+|---|---|---|
+| 1 | System Description | Propósito, tecnología AI, modelos, alcance, revisión humana |
+| 2 | Fundamental Rights Identification | Datos personales, empleo, seguridad, discriminación |
+| 3 | Impact Assessment | Nivel de riesgo, impacto máximo, velocidad de detección |
+| 4 | Mitigation Measures | Guardrails, scanning, testing, audit trail, medidas adicionales |
+| 5 | Monitoring & Review | Frecuencia de revisión, responsable, proceso de incidentes |
+
+**Auto-detección:** Para campos marcados con `auto_detect`, licit intenta inferir la respuesta desde la configuración del proyecto. Si lo consigue, muestra el valor detectado y pregunta si aceptarlo.
+
 **Archivos generados:**
-- `.licit/fria-data.json` — Datos raw de la evaluación
-- `.licit/fria-report.md` — Reporte legible del FRIA
+- `.licit/fria-data.json` — Datos raw de la evaluación (JSON, reutilizable con `--update`)
+- `.licit/fria-report.md` — Reporte Markdown legible del FRIA
+
+**Ejemplo:**
+```bash
+$ licit fria
+
+============================================================
+  FUNDAMENTAL RIGHTS IMPACT ASSESSMENT (FRIA)
+  EU AI Act -- Article 27
+============================================================
+
+──────────────────────────────────────────────────
+  Step 1: System Description
+──────────────────────────────────────────────────
+
+  [1.1] What is the primary purpose of this AI system?
+  -> Auto-detected: AI-assisted code development using claude-code
+    Accept this value? [Y/n]:
+```
 
 ---
 
@@ -335,7 +371,7 @@ licit fria [--update]
 
 Genera la Documentación Técnica del Anexo IV (EU AI Act).
 
-> **Estado**: Registrado en CLI. Funcional a partir de Fase 4.
+> **Estado**: **Funcional** (Fase 4 completada).
 
 ```bash
 licit annex-iv [--organization NOMBRE] [--product NOMBRE]
@@ -345,11 +381,35 @@ licit annex-iv [--organization NOMBRE] [--product NOMBRE]
 
 | Opción | Descripción |
 |---|---|
-| `--organization` | Nombre de la organización |
-| `--product` | Nombre del producto |
+| `--organization` | Nombre de la organización (default: nombre del proyecto) |
+| `--product` | Nombre del producto (default: nombre del proyecto) |
+
+**Qué hace:**
+1. Detecta el proyecto y recopila toda la evidencia disponible.
+2. Auto-puebla un documento Annex IV con 6 secciones desde los metadatos del proyecto.
+3. Genera recomendaciones para secciones con evidencia faltante.
+4. Escribe el resultado en `.licit/annex-iv.md`.
+
+**6 secciones auto-generadas:**
+
+| Sección | Contenido |
+|---|---|
+| 1. General Description | Propósito, componentes AI, lenguajes, frameworks |
+| 2. Development Process | Control de versiones, provenance AI, configs de agentes |
+| 3. Monitoring & Control | CI/CD, audit trail, changelog |
+| 4. Risk Management | Guardrails, quality gates, budget, oversight, FRIA |
+| 5. Testing & Validation | Framework de tests, herramientas de seguridad |
+| 6. Changes & Lifecycle | Resumen de mecanismos de tracking |
+
+**Ejemplo:**
+```bash
+$ licit annex-iv --organization "ACME Corp" --product "WebApp"
+
+  Annex IV documentation saved to: .licit/annex-iv.md
+```
 
 **Archivo generado:**
-- `.licit/annex-iv.md`
+- `.licit/annex-iv.md` — Documentación técnica completa en Markdown
 
 ---
 
@@ -412,7 +472,7 @@ EU AI Act Compliance Gaps:
 
 Verifica compliance y devuelve código de salida para CI/CD.
 
-> **Estado**: Registrado en CLI. Funcional a partir de Fase 6.
+> **Estado**: **Funcional para EU AI Act** (Fase 4). Evaluación OWASP pendiente (Fase 5).
 
 ```bash
 licit verify [--framework {eu-ai-act|owasp|all}]
@@ -444,8 +504,8 @@ licit verify [--framework {eu-ai-act|owasp|all}]
 | `connect` | 1 | Funcional | Configura conectores |
 | `trace` | 2 | **Funcional** | Trazabilidad de proveniencia |
 | `changelog` | 3 | **Funcional** | Changelog de configs de agentes |
-| `fria` | 4 | Skeleton | FRIA (EU AI Act Art. 27) |
-| `annex-iv` | 4 | Skeleton | Documentación técnica Anexo IV |
+| `fria` | 4 | **Funcional** | FRIA (EU AI Act Art. 27) |
+| `annex-iv` | 4 | **Funcional** | Documentación técnica Anexo IV |
 | `report` | 6 | Skeleton | Reporte unificado de compliance |
 | `gaps` | 6 | Skeleton | Brechas de compliance |
-| `verify` | 6 | Skeleton | Gate de CI/CD |
+| `verify` | 4 | **Funcional (EU AI Act)** | Gate de CI/CD |
