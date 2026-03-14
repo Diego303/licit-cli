@@ -41,10 +41,10 @@ licit report
 
 ## Versión actual
 
-- **v0.3.0** — Fase 1 (Foundation) + Fase 2 (Provenance) + Fase 3 (Changelog) completadas
+- **v0.4.0** — Fases 1-4 completadas (Foundation + Provenance + Changelog + EU AI Act)
 - Python 3.12+ requerido
-- 10 comandos CLI registrados, 5 funcionales (`init`, `status`, `connect`, `trace`, `changelog`)
-- 373 tests, mypy strict, ruff clean
+- 10 comandos CLI registrados, 8 funcionales (`init`, `status`, `connect`, `trace`, `changelog`, `fria`, `annex-iv`, `verify`)
+- 497 tests, mypy strict, ruff clean
 
 ## Licencia
 

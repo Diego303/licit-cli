@@ -124,8 +124,8 @@ Exit codes: `0` = compliant, `1` = non-compliant, `2` = partially compliant.
 
 | Framework | Version | Status |
 |-----------|---------|--------|
-| EU AI Act | Regulation (EU) 2024/1689 | V0 |
-| OWASP Agentic Top 10 | 2026 | V0 |
+| EU AI Act | Regulation (EU) 2024/1689 | **V0 — Implemented** |
+| OWASP Agentic Top 10 | 2026 | V0 — Pending |
 | NIST AI RMF | AI 100-1 | Planned (V1) |
 | ISO/IEC 42001 | 2023 | Planned (V1) |
 
@@ -307,7 +307,15 @@ src/licit/
 │   ├── differ.py                      # Semantic diff (YAML/JSON/MD/text)
 │   ├── classifier.py                  # Severity classification (MAJOR/MINOR/PATCH)
 │   └── renderer.py                    # Markdown + JSON output
-├── frameworks/                         # EU AI Act, OWASP (Phase 4-5)
+├── frameworks/                         # ✅ Phase 4 — EU AI Act complete
+│   ├── base.py                        # ComplianceFramework Protocol
+│   ├── registry.py                    # Framework registry
+│   └── eu_ai_act/
+│       ├── requirements.py            # 11 articles as ControlRequirements
+│       ├── evaluator.py               # Article-by-article compliance evaluation
+│       ├── fria.py                    # FRIA interactive generator (Art. 27)
+│       ├── annex_iv.py                # Annex IV technical documentation
+│       └── templates/                 # Jinja2 templates (FRIA, Annex IV, report)
 ├── connectors/                         # architect + vigil (Phase 7)
 ├── reports/                            # Unified reports, gap analysis (Phase 6)
 └── logging/                            # structlog configuration
@@ -334,7 +342,7 @@ Full documentation (in Spanish) is available in the [`docs/`](docs/) directory:
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests (373 tests)
+# Run tests (497 tests)
 pytest tests/ -q
 
 # Lint

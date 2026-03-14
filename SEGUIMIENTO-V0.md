@@ -12,15 +12,15 @@
 | **Phase 1** | Foundation | **COMPLETADA + QA** | 113/113 | 22 source + 8 test |
 | **Phase 2** | Provenance | **COMPLETADA + QA** | 167/167 | 10 source + 7 test |
 | **Phase 3** | Changelog | **COMPLETADA + QA** | 93/93 | 5 source + 11 test |
-| Phase 4 | EU AI Act | Pendiente | — | — |
+| **Phase 4** | EU AI Act | **COMPLETADA + QA** | 124/124 | 9 source + 3 templates + 5 test |
 | Phase 5 | OWASP Agentic | Pendiente | — | — |
 | Phase 6 | Reports + Gap Analyzer | Pendiente | — | — |
 | Phase 7 | Connectors + Integration | Pendiente | — | — |
 
 **Verificación de calidad:**
 - `ruff check src/licit/` — Sin errores
-- `mypy src/licit/ --strict` — Sin errores (0 issues en 33 archivos)
-- `pytest tests/ -q` — 373 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3)
+- `mypy src/licit/ --strict` — Sin errores (0 issues en 39 archivos)
+- `pytest tests/ -q` — 497 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3 + 124 Phase 4)
 
 ---
 
@@ -39,7 +39,7 @@ completo del CLI con los 10 comandos, y sistema de logging.
 
 Se configuró el proyecto completo con hatchling como build system:
 - Nombre del paquete: `licit-ai-cli`
-- Versión: `0.3.0`
+- Versión: `0.4.0`
 - Python: `>=3.12`
 - 6 dependencias runtime: click, pydantic, structlog, pyyaml, jinja2, cryptography
 - 4 dependencias dev: pytest, pytest-cov, ruff, mypy
@@ -723,16 +723,282 @@ de tests adicionales de edge cases, y prueba de integración end-to-end con git 
 
 ---
 
-## Phase 4 — EU AI Act (PENDIENTE)
+## Phase 4 — EU AI Act Framework (COMPLETADA)
 
-Módulos a implementar:
-- `src/licit/frameworks/base.py`
-- `src/licit/frameworks/registry.py`
-- `src/licit/frameworks/eu_ai_act/requirements.py`
-- `src/licit/frameworks/eu_ai_act/evaluator.py`
-- `src/licit/frameworks/eu_ai_act/fria.py`
-- `src/licit/frameworks/eu_ai_act/annex_iv.py`
-- Templates Jinja2
+### Objetivo
+Implementar el framework de EU AI Act completo: protocolo base de frameworks, registro,
+11 requisitos evaluables (artículos 9-27 + Annex IV), evaluador por artículo con scoring,
+generador FRIA interactivo con auto-detección, generador Annex IV auto-poblado desde
+metadatos del proyecto, y templates Jinja2 para los reportes.
+
+### Módulos Implementados
+
+#### P4.1 — Framework Protocol + Registry
+
+**Archivos:**
+- `src/licit/frameworks/base.py` — Protocol `ComplianceFramework`
+- `src/licit/frameworks/registry.py` — `FrameworkRegistry` con singleton global
+
+**Protocol `ComplianceFramework`:**
+- `@runtime_checkable` — Permite verificación con `isinstance()` en runtime
+- 3 propiedades: `name`, `version`, `description`
+- 2 métodos: `get_requirements()` → `list[ControlRequirement]`, `evaluate(context, evidence)` → `list[ControlResult]`
+- Imports en `TYPE_CHECKING` block para evitar dependencias circulares
+
+**`FrameworkRegistry`:**
+- Dict-based: `register()`, `get()`, `list_all()`, `names()`
+- Singleton global via `_registry` + `get_registry()`
+- Infraestructura para Phase 6 (unified report enumera frameworks registrados)
+- Logging structlog en registro de frameworks
+
+#### P4.2 — EU AI Act Requirements
+
+**Archivo:** `src/licit/frameworks/eu_ai_act/requirements.py`
+
+11 requisitos como `ControlRequirement` dataclasses con constantes de framework:
+
+| ID | Artículo | Nombre | Categoría |
+|----|----------|--------|-----------|
+| ART-9-1 | Article 9(1) | Risk Management System | risk-management |
+| ART-10-1 | Article 10(1) | Data Governance | data-governance |
+| ART-12-1 | Article 12(1) | Record Keeping — Automatic Logging | record-keeping |
+| ART-13-1 | Article 13(1) | Transparency — Information for Deployers | transparency |
+| ART-14-1 | Article 14(1) | Human Oversight | human-oversight |
+| ART-14-4a | Article 14(4)(a) | Human Oversight — Understand Capabilities | human-oversight |
+| ART-14-4d | Article 14(4)(d) | Human Oversight — Ability to Intervene | human-oversight |
+| ART-26-1 | Article 26(1) | Deployer — Use in Accordance with Instructions | deployer-obligations |
+| ART-26-5 | Article 26(5) | Deployer — Monitoring | deployer-obligations |
+| ART-27-1 | Article 27(1) | Fundamental Rights Impact Assessment (FRIA) | fria |
+| ANNEX-IV | Annex IV | Technical Documentation | documentation |
+
+**Helpers:** `get_requirement(id)` y `get_requirements_by_category(category)`.
+
+#### P4.3 — EU AI Act Evaluator
+
+**Archivo:** `src/licit/frameworks/eu_ai_act/evaluator.py`
+
+`EUAIActEvaluator` — Implementa `ComplianceFramework` Protocol. Evalúa los 11 artículos
+usando dispatch dinámico: `getattr(self, f"_eval_{id.lower().replace('-', '_')}")`.
+
+**Scoring por artículo:**
+
+| Artículo | Indicadores (score) | Compliant at | Partial at |
+|----------|-------------------|-------------|------------|
+| Art. 9 | Guardrails +1, quality gates +1, budget +1, security scanning +1 (max 4) | 3+ | 1+ |
+| Art. 10 | Siempre PARTIAL (deployer no entrena modelos) | — | — |
+| Art. 12 | Git +1, audit trail +2, provenance +1, OTel +1 (max 5) | 3+ | 1+ |
+| Art. 13 | Annex IV +2, changelog +1, traceability +1 (max 4) | 2+ | 1+ |
+| Art. 14 | Dry-run +1, human review +2, quality gates +1, budget +1 (max 5) | 3+ | 1+ |
+| Art. 14(4)(a) | Delega a Art. 14(1) | — | — |
+| Art. 14(4)(d) | Dry-run + rollback → COMPLIANT, else PARTIAL | — | — |
+| Art. 26(1) | Agent configs presentes → COMPLIANT, else PARTIAL | — | — |
+| Art. 26(5) | Delega a Art. 12(1) | — | — |
+| Art. 27 | FRIA presente → COMPLIANT, else NON_COMPLIANT | — | — |
+| Annex IV | Documentación presente → COMPLIANT, else NON_COMPLIANT | — | — |
+
+**`_score_to_status(score, *, compliant_at, partial_at)` helper:**
+- score >= compliant_at → COMPLIANT
+- score >= partial_at → PARTIAL
+- else → NON_COMPLIANT
+
+**Robustez:**
+- `provenance_stats.get("ai_percentage")` con `isinstance` check + `logger.debug` en type inesperado
+- Métodos delegantes (`_eval_art_14_4a`, `_eval_art_26_5`) preservan el `req` del caller
+- Cada método genera recomendaciones accionables con comandos licit concretos
+- Scoring rationale documentado en docstring de cada método
+
+#### P4.4 — FRIA Generator
+
+**Archivo:** `src/licit/frameworks/eu_ai_act/fria.py`
+
+`FRIAGenerator` — Genera Fundamental Rights Impact Assessment interactivo per Art. 27.
+
+**5 pasos con 16 preguntas:**
+
+| Paso | Título | Preguntas | Auto-detectable |
+|------|--------|-----------|-----------------|
+| 1 | System Description | 5 | system_purpose, ai_technology, models_used, human_review |
+| 2 | Fundamental Rights Identification | 4 | — |
+| 3 | Impact Assessment | 3 | — |
+| 4 | Mitigation Measures | 5 | guardrails, security_scanning, testing, audit_trail |
+| 5 | Monitoring & Review | 3 | — |
+
+**Auto-detección (8 campos):**
+
+| Campo | Fuente | Ejemplo |
+|-------|--------|---------|
+| system_purpose | `has_architect` / `agent_configs` | "Autonomous code generation using AI agents (architect)" |
+| ai_technology | `has_architect` → headless, else interactive | "Autonomous AI agent (headless)" |
+| models_used | Lee `architect_config_path` → `llm.model` | "claude-sonnet-4" |
+| human_review | `ev.has_human_review_gate` | "Yes -- all AI-generated code requires human review" |
+| guardrails | `ev.has_guardrails` + counts | "5 guardrail rules, 2 quality gates, budget limits" |
+| security_scanning | `ctx.security.has_vigil/semgrep/snyk/codeql` | "vigil (AI-specific security), Semgrep (SAST)" |
+| testing | `ctx.test_framework` + `ctx.test_dirs` | "pytest (tests)" |
+| audit_trail | git + audit trail + provenance | "Git history (100 commits), Code provenance tracking (licit)" |
+
+**Dispatch de detectores:** Dict de `Callable[[], str | None]` mapea campo → método `_detect_*`.
+
+**Métodos públicos:**
+- `run_interactive()` → `dict[str, Any]` — Cuestionario con click.echo/prompt/confirm
+- `generate_report(responses, output_path)` — Jinja2 render a Markdown
+- `save_data(responses, data_path)` — JSON persistence
+
+**Robustez:**
+- `_detect_models_used`: `try/except (OSError, YAMLError)` con logging
+- Versión via `licit.__version__` (no hardcoded)
+- `encoding="utf-8"` en toda I/O de archivos
+- `Path.parent.mkdir(parents=True, exist_ok=True)` antes de write
+
+#### P4.5 — Annex IV Generator
+
+**Archivo:** `src/licit/frameworks/eu_ai_act/annex_iv.py`
+
+`AnnexIVGenerator` — Auto-genera documentación técnica Annex IV desde metadatos del proyecto.
+
+**`_collect_data()` — 27 variables de template:**
+- Organización, producto, timestamp
+- Lenguajes, frameworks, package managers
+- Agent configs y tipos, has_architect
+- CI/CD platform y config path
+- Test framework y dirs
+- Security tools (vigil, Semgrep, Snyk, CodeQL, Trivy)
+- Git stats (commits, contributors)
+- Provenance (has + ai_percentage)
+- Audit trail (has + count), changelog, FRIA
+- Guardrails (has + count), quality gates (has + count)
+- Budget limits, human review gate
+
+**6 secciones del documento:**
+1. General Description — Intended purpose, AI components, languages/frameworks
+2. Development Process — Version control, AI provenance, agent config files
+3. Monitoring, Functioning and Control — CI/CD, audit trail, changelog tracking
+4. Risk Management — Guardrails, quality gates, budget, human oversight, FRIA
+5. Testing and Validation — Test framework, security scanning tools
+6. Changes and Lifecycle — Resumen de mecanismos de tracking
+
+**Recomendaciones automáticas:** Cada sección sin evidencia genera una recomendación
+accionable con comando licit concreto (ej: "Run `licit trace` to begin tracking code provenance").
+
+#### P4.6 — Jinja2 Templates
+
+**Archivos:**
+- `src/licit/frameworks/eu_ai_act/templates/fria_template.md.j2`
+- `src/licit/frameworks/eu_ai_act/templates/annex_iv_template.md.j2`
+- `src/licit/frameworks/eu_ai_act/templates/report_section.md.j2`
+
+**FRIA template:**
+- Header table (project, generated, version)
+- Iteración sobre steps/questions con `responses.get(q.field, '*Not provided*')`
+- Summary section con review schedule
+- Acceso seguro: `responses.get('key', default)` en todos los campos
+
+**Annex IV template:**
+- Whitespace-controlled con `{%-`/`-%}` para output limpio (sin blank lines excesivos)
+- Conditional blocks para cada sección
+- `{{ "%.1f" | format(ai_percentage) }}%` para porcentaje de provenance
+- `{{ languages | join(', ') }}` para listas
+
+**Report section template:**
+- Summary table (compliant/partial/non-compliant/n-a/not-evaluated + compliance rate)
+- Per-requirement details con status, article ref, evidence, recommendations
+
+#### P4.7 — CLI Integration
+
+**Archivo:** `src/licit/cli.py` (modificado)
+
+Cambios:
+- `licit fria`: Import directo de `FRIAGenerator` (sin `# type: ignore`)
+- `licit annex-iv`: Import directo de `AnnexIVGenerator` (sin `# type: ignore`)
+- `_get_frameworks()`: Import directo de `EUAIActEvaluator` (sin `# type: ignore`)
+- Types: `FRIAGenerator` y `AnnexIVGenerator` tipados (sin `Any`)
+
+#### P4.8 — Test Infrastructure Updates
+
+**Archivo:** `tests/conftest.py` (modificado)
+
+- `make_context()`: Nuevo parámetro `security: SecurityTooling | None`
+- `make_evidence()`: 6 nuevos parámetros: `provenance_stats`, `fria_path`, `annex_iv_path`, `audit_entry_count`, `changelog_entry_count`
+
+### Tests (124 total de Phase 4)
+
+| Archivo | # Tests | Qué cubre |
+|---------|---------|-----------|
+| `tests/test_frameworks/test_eu_ai_act/test_evaluator.py` | 32 | Properties (4), full evaluation (3), Art. 9 (4), Art. 10 (1), Art. 12 (4), Art. 13 (3), Art. 14 (6), Art. 26 (3), Art. 27 (2), Annex IV (2) |
+| `tests/test_frameworks/test_eu_ai_act/test_fria.py` | 23 | Steps structure (5), auto-detection (13), report generation (3), data saving (2) |
+| `tests/test_frameworks/test_eu_ai_act/test_annex_iv.py` | 17 | Generation (3), content sections (12), minimal project (2) |
+| `tests/test_frameworks/test_eu_ai_act/test_requirements.py` | 9 | Data integrity (3), get_requirement (3), get_by_category (3) |
+| `tests/test_frameworks/test_eu_ai_act/test_qa_edge_cases.py` | 43 | Protocol conformance (3), _score_to_status (7), evaluator edges (8), FRIA edges (8), Annex IV edges (5), registry (5), CLI (2), requirements integrity (3), cross-module (2) |
+
+### Decisiones Técnicas
+
+1. **`@property` para Protocol y evaluator** — `name`, `version`, `description` como `@property`
+   en la Protocol y en `EUAIActEvaluator`. Más explícito que class attributes, y compatible
+   con mypy strict + structural typing.
+
+2. **Dynamic method dispatch** — `getattr(self, f"_eval_{id}")` con fallback a `NOT_EVALUATED`.
+   Permite agregar artículos nuevos con solo añadir un método `_eval_*` y un `ControlRequirement`.
+   Test `test_all_requirement_ids_have_evaluator_method` verifica que no haya gaps.
+
+3. **Scoring con thresholds configurables** — `_score_to_status(score, compliant_at=N, partial_at=M)`
+   permite que cada artículo tenga umbrales diferentes según cuántos indicadores existen.
+   Art. 13 solo necesita score 2 (Annex IV sola basta) vs. Art. 9 necesita 3.
+
+4. **FRIA auto-detect via callable dispatch** — Dict `{field: Callable}` en lugar de cadena
+   if/elif. Más extensible: agregar campo = agregar método + entrada en dict.
+
+5. **Templates con whitespace control** — `{%-`/`-%}` en Annex IV template para evitar
+   blank lines excesivos. FRIA template usa `responses.get()` consistentemente para safety.
+
+6. **Registry como infraestructura** — `FrameworkRegistry` se crea pero no se usa aún.
+   Phase 6 (unified report) lo usará para enumerar frameworks. No es dead code: es
+   infraestructura planificada según el dependency graph (P4.1 → P6.1).
+
+### QA Hardening (post-implementación)
+
+Se realizó una revisión de QA completa: verificación estática (`ruff --select ALL` +
+`mypy --strict`), análisis profundo de cada archivo, ejecución de 454 tests existentes,
+escritura de 43 tests de edge cases, y prueba de integración end-to-end con git repo real.
+
+#### Bugs encontrados y corregidos
+
+| # | Severidad | Archivo | Problema | Corrección |
+|---|-----------|---------|----------|------------|
+| 1 | **Media** | `fria_template.md.j2` | `{{ responses.responsible_person }}` — acceso directo a dict sin `.get()` dentro de bloque `{% if %}` guard | Cambiado a `{{ responses.get('responsible_person', '') }}` |
+| 2 | **Media** | `annex_iv_template.md.j2` | Blank lines excesivos entre secciones por whitespace de Jinja2 | Añadido `{%-`/`-%}` whitespace control en bloques condicionales |
+
+#### Tests de QA añadidos (43 nuevos)
+
+**Archivo:** `tests/test_frameworks/test_eu_ai_act/test_qa_edge_cases.py`
+
+| Clase | # Tests | Cobertura |
+|-------|---------|-----------|
+| `TestProtocolConformance` | 3 | `isinstance()` check, evaluate signature, get_requirements types |
+| `TestScoreToStatus` | 7 | Boundaries: 0, partial_at, between, compliant_at, above, negative, equal thresholds |
+| `TestEvaluatorEdgeCases` | 8 | provenance_stats string/None/missing, all-compliant scenario, all-non-compliant, delegation preserves requirement ID, recommendations are actionable strings |
+| `TestFRIAEdgeCases` | 8 | Empty responses, unicode, save/load roundtrip, YAML real/malformado/missing/sin-llm-key, question ID sequential |
+| `TestAnnexIVEdgeCases` | 5 | Unicode in org/product, empty strings, pipe chars, percentage 0 and 100 |
+| `TestFrameworkRegistry` | 5 | Register/get, missing, list_all, names, empty |
+| `TestCLIIntegration` | 2 | `verify --framework eu-ai-act` exit code 1, output contains expected text |
+| `TestRequirementsIntegrity` | 3 | All IDs have evaluator method, framework consistent, categories valid |
+| `TestCrossModule` | 2 | ControlResult → GapItem compatibility, ControlResult → ComplianceSummary |
+
+#### Verificación estática final
+
+| Herramienta | Resultado |
+|-------------|-----------|
+| `ruff check src/licit/` | ✅ 0 errores |
+| `mypy --strict src/licit/` | ✅ 0 errores en 39 archivos |
+| `pytest tests/` | ✅ 497 tests passed |
+| E2E real git repo | ✅ init → trace → annex-iv → verify pipeline completo |
+
+#### Riesgos residuales
+
+| Riesgo | Impacto | Nota |
+|--------|---------|------|
+| Pipe char `\|` en organization/product name rompe tabla Markdown en Annex IV | Bajo | Documentado por test; org names raramente contienen `\|` |
+| FRIA `run_interactive()` sin unit tests | Bajo | Requiere terminal I/O; auto-detect, report gen, y save están cubiertos; flujo interactivo verificado manualmente |
+| `autoescape=False` en Jinja2 Environment | Bajo | Correcto para Markdown; Phase 6 HTML reporter deberá usar `True` |
+| `registry.py` sin uso activo | Info | Infraestructura para Phase 6; no es dead code |
 
 ---
 

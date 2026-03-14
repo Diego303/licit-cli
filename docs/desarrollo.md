@@ -30,7 +30,7 @@ python3.12 -m pip install -e ".[dev]"
 
 # Verificar la instalación
 licit --version
-# licit, version 0.3.0
+# licit, version 0.4.0
 ```
 
 ### Dependencias de desarrollo
@@ -73,7 +73,7 @@ python3.12 -m licit status                  # Probar status
 
 ```
 src/licit/
-├── __init__.py         # __version__ = "0.3.0"
+├── __init__.py         # __version__ = "0.4.0"
 ├── __main__.py         # Entry point: python -m licit
 ├── py.typed            # PEP 561 marker
 ├── cli.py              # Todos los comandos Click
@@ -102,7 +102,15 @@ src/licit/
 │   ├── differ.py       # Diffing semántico (YAML/JSON/MD/text)
 │   ├── classifier.py   # Clasificación MAJOR/MINOR/PATCH
 │   └── renderer.py     # Rendering Markdown + JSON
-├── frameworks/         # Fases 4-5
+├── frameworks/         # Fase 4 (COMPLETADA)
+│   ├── base.py        # Protocol ComplianceFramework
+│   ├── registry.py    # FrameworkRegistry
+│   └── eu_ai_act/     # EU AI Act evaluator, FRIA, Annex IV
+│       ├── requirements.py
+│       ├── evaluator.py
+│       ├── fria.py
+│       ├── annex_iv.py
+│       └── templates/  # Jinja2 templates
 ├── connectors/         # Fase 7
 └── reports/            # Fase 6
 ```
@@ -169,18 +177,15 @@ Cuando un comando necesita un módulo que aún no existe, usa lazy imports con `
 
 ```python
 @main.command()
-def fria() -> None:
-    """Generate FRIA questionnaire."""
-    try:
-        from licit.frameworks.eu_ai_act.fria import (  # type: ignore[import-not-found]
-            FRIAGenerator,
-        )
-    except ImportError:
-        click.echo("FRIA not yet implemented.")
-        raise SystemExit(1)
+def mi_comando() -> None:
+    """Command depending on future phase."""
+    from licit.reports.unified import (  # type: ignore[import-not-found]
+        UnifiedReportGenerator,
+    )
+    generator: Any = UnifiedReportGenerator(...)
 ```
 
-> **Nota**: Los módulos de Fase 2 (provenance) y Fase 3 (changelog) ya están implementados y se importan directamente sin `type: ignore`.
+> **Nota**: Los módulos de Fases 2-4 (provenance, changelog, eu_ai_act) ya están implementados y se importan directamente sin `type: ignore`. Solo `reports/` (Phase 6) y `owasp_agentic/` (Phase 5) usan stubs lazy.
 
 ### 6. Ruff y mypy
 
@@ -215,17 +220,24 @@ tests/
 │   ├── test_session_reader.py      # 13 tests
 │   ├── test_qa_edge_cases.py       # 81 tests (QA Phase 2)
 │   └── fixtures/                   # Datos de test
-└── test_changelog/
-    ├── test_watcher.py             # 12 tests
-    ├── test_differ.py              # 19 tests
-    ├── test_classifier.py          # 22 tests
-    ├── test_renderer.py            # 10 tests
-    ├── test_integration.py         # 3 tests
-    ├── test_qa_edge_cases.py       # 27 tests (QA Phase 3)
-    └── fixtures/                   # Datos de test
+├── test_changelog/
+│   ├── test_watcher.py             # 12 tests
+│   ├── test_differ.py              # 19 tests
+│   ├── test_classifier.py          # 22 tests
+│   ├── test_renderer.py            # 10 tests
+│   ├── test_integration.py         # 3 tests
+│   ├── test_qa_edge_cases.py       # 27 tests (QA Phase 3)
+│   └── fixtures/                   # Datos de test
+└── test_frameworks/
+    └── test_eu_ai_act/
+        ├── test_evaluator.py       # 32 tests
+        ├── test_fria.py            # 23 tests
+        ├── test_annex_iv.py        # 17 tests
+        ├── test_requirements.py    # 9 tests
+        └── test_qa_edge_cases.py   # 43 tests (QA Phase 4)
 ```
 
-**Total: 373 tests**
+**Total: 497 tests**
 
 ### Fixtures disponibles (conftest.py)
 
@@ -355,7 +367,7 @@ class LicitConfig(BaseModel):
    - Tests en tests/
 
 3. Verificar
-   python3.12 -m pytest tests/ -q      # 373+ tests passing
+   python3.12 -m pytest tests/ -q      # 497+ tests passing
    python3.12 -m ruff check src/licit/  # All checks passed
    python3.12 -m mypy src/licit/ --strict  # No issues found
 
@@ -373,7 +385,7 @@ class LicitConfig(BaseModel):
 | 1 | `cli.py`, `config/`, `core/`, `logging/` | múltiples | **COMPLETADA** |
 | 2 | `heuristics.py`, `git_analyzer.py`, `store.py`, `attestation.py`, `tracker.py`, `report.py`, `session_readers/` | `provenance/` | **COMPLETADA** |
 | 3 | `watcher.py`, `differ.py`, `classifier.py`, `renderer.py` | `changelog/` | **COMPLETADA** |
-| 4 | `requirements.py`, `evaluator.py`, `fria.py`, `annex_iv.py`, `templates/` | `frameworks/eu_ai_act/` | Pendiente |
+| 4 | `base.py`, `registry.py`, `requirements.py`, `evaluator.py`, `fria.py`, `annex_iv.py`, `templates/` | `frameworks/`, `frameworks/eu_ai_act/` | **COMPLETADA** |
 | 5 | `requirements.py`, `evaluator.py`, `templates/` | `frameworks/owasp_agentic/` | Pendiente |
 | 6 | `unified.py`, `gap_analyzer.py`, `markdown.py`, `json_fmt.py`, `html.py` | `reports/` | Pendiente |
 | 7 | `base.py`, `architect.py`, `vigil.py` | `connectors/` | Pendiente |

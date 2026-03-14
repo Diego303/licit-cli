@@ -9,6 +9,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [0.4.0] — 2026-03-14
+
+### Added
+
+#### Phase 4 — EU AI Act Framework
+
+- **Framework protocol + registry** (`src/licit/frameworks/`)
+  - `ComplianceFramework` Protocol (`base.py`) — `@runtime_checkable` structural typing with `name`, `version`, `description` properties, `get_requirements()`, and `evaluate()` methods.
+  - `FrameworkRegistry` (`registry.py`) — Dict-based registry with `register()`, `get()`, `list_all()`, `names()`. Global singleton via `get_registry()`. Infrastructure for Phase 6 unified reports.
+- **EU AI Act requirements** (`src/licit/frameworks/eu_ai_act/requirements.py`)
+  - 11 `ControlRequirement` definitions covering Articles 9, 10, 12, 13, 14, 14(4)(a), 14(4)(d), 26, 26(5), 27, and Annex IV.
+  - 8 categories: risk-management, data-governance, record-keeping, transparency, human-oversight, deployer-obligations, fria, documentation.
+  - Helper functions: `get_requirement(id)` and `get_requirements_by_category(category)`.
+- **EU AI Act evaluator** (`src/licit/frameworks/eu_ai_act/evaluator.py`)
+  - `EUAIActEvaluator` with dynamic method dispatch via `getattr(self, f"_eval_{id}")` — adding new articles requires only a new method + requirement entry.
+  - Dedicated evaluation methods for all 11 articles with scoring logic:
+    - Art. 9: Risk management (guardrails +1, quality gates +1, budget +1, security scanning +1; compliant at 3+).
+    - Art. 10: Data governance (always PARTIAL — deployer doesn't train models).
+    - Art. 12: Record keeping (git +1, audit trail +2, provenance +1, OTel +1; compliant at 3+).
+    - Art. 13: Transparency (Annex IV +2, changelog +1, traceability +1; compliant at 2+).
+    - Art. 14: Human oversight (dry-run +1, review gate +2, quality gates +1, budget +1; compliant at 3+).
+    - Art. 14(4)(a): Delegates to Art. 14(1) — same evidence applies.
+    - Art. 14(4)(d): Intervention capability (dry-run + rollback → COMPLIANT).
+    - Art. 26(1): Agent configs present → COMPLIANT.
+    - Art. 26(5): Delegates to Art. 12(1) — monitoring = logging.
+    - Art. 27: FRIA document present → COMPLIANT.
+    - Annex IV: Technical documentation present → COMPLIANT.
+  - `_score_to_status()` helper with configurable `compliant_at` and `partial_at` thresholds.
+  - Type-safe `provenance_stats` access with `isinstance` check and `logger.debug` on unexpected types.
+  - Scoring rationale documented in each method's docstring.
+- **FRIA generator** (`src/licit/frameworks/eu_ai_act/fria.py`)
+  - `FRIAGenerator` — Interactive 5-step questionnaire per EU AI Act Article 27.
+  - 5 steps with 16 questions: System Description (5), Fundamental Rights Identification (4), Impact Assessment (3), Mitigation Measures (5), Monitoring & Review (3).
+  - Auto-detection for 8 fields: system_purpose, ai_technology, models_used, human_review, guardrails, security_scanning, testing, audit_trail.
+  - `_detect_models_used()` reads architect config YAML for model info with `OSError`/`YAMLError` handling.
+  - `generate_report()` — Jinja2 template rendering to Markdown with `encoding="utf-8"`.
+  - `save_data()` — JSON persistence for future FRIA updates.
+  - Version from `licit.__version__` (not hardcoded).
+- **Annex IV generator** (`src/licit/frameworks/eu_ai_act/annex_iv.py`)
+  - `AnnexIVGenerator` — Auto-populates technical documentation from project metadata.
+  - `_collect_data()` aggregates 27 template variables from `ProjectContext` and `EvidenceBundle`.
+  - 6-section document: General Description, Development Process, Monitoring/Functioning/Control, Risk Management, Testing/Validation, Changes/Lifecycle.
+  - Recommendations auto-generated for missing features (provenance, audit trail, guardrails, FRIA, security scanning, test framework).
+- **Jinja2 templates** (`src/licit/frameworks/eu_ai_act/templates/`)
+  - `fria_template.md.j2` — FRIA report with header table, 5 steps rendered from responses, summary, review schedule.
+  - `annex_iv_template.md.j2` — Annex IV with 6 sections, conditional blocks, recommendations for gaps. Whitespace-controlled with `{%-`/`-%}` for clean output.
+  - `report_section.md.j2` — Framework compliance section for Phase 6 unified report (summary table + per-requirement details).
+
+#### QA Hardening — Phase 4
+
+- **Bug fixes** — 2 issues found and fixed during QA review:
+  - **(Medium)** `fria_template.md.j2`: `{{ responses.responsible_person }}` used direct dict attribute access inside `{% if %}` guard — changed to `{{ responses.get('responsible_person', '') }}`.
+  - **(Medium)** `annex_iv_template.md.j2`: Excessive blank lines between sections due to Jinja2 whitespace handling — added `{%-`/`-%}` whitespace control on conditional blocks.
+- **124 new Phase 4 tests** across 5 test files:
+  - `test_evaluator.py` (32) — Properties, full evaluation, Art. 9/10/12/13/14/26/27/Annex IV compliance paths (compliant, partial, non-compliant).
+  - `test_fria.py` (23) — FRIA steps structure (5 steps, keys, choices, unique fields), auto-detection (8 fields), report generation, data saving.
+  - `test_annex_iv.py` (17) — File creation, content sections (12 checks), minimal project, recommendations.
+  - `test_requirements.py` (9) — Data integrity, unique IDs, categories, `get_requirement()`, `get_requirements_by_category()`.
+  - `test_qa_edge_cases.py` (43) — Protocol conformance (`isinstance` check), `_score_to_status` boundaries (7), evaluator edge cases (provenance_stats string/None/missing, all-compliant, all-non-compliant, delegation preserves requirement ID), FRIA edge cases (empty responses, unicode, roundtrip, YAML real/malformed/missing), Annex IV edge cases (unicode, empty, pipe chars, percentage 0/100), registry (5), CLI integration (`verify --framework eu-ai-act`), requirements integrity, cross-module compatibility (ControlResult → GapItem, ComplianceSummary).
+- **CLI integration** — `licit fria`, `licit annex-iv`, and `licit verify --framework eu-ai-act` now fully functional:
+  - Real imports replacing `# type: ignore[import-not-found]` stubs for EU AI Act modules.
+  - `FRIAGenerator`, `AnnexIVGenerator`, `EUAIActEvaluator` use real types (not `Any`).
+- **Test infrastructure** — `conftest.py` updated:
+  - `make_context()` now accepts `security: SecurityTooling | None` parameter.
+  - `make_evidence()` now accepts `provenance_stats`, `fria_path`, `annex_iv_path`, `audit_entry_count`, `changelog_entry_count` parameters.
+
+### Changed
+
+- Test suite expanded from 373 to 497 tests (373 previous + 124 Phase 4).
+- `licit fria`, `licit annex-iv` commands now fully functional (were skeletons in Phase 1).
+- `licit verify --framework eu-ai-act` now evaluates 11 articles and returns exit codes 0/1/2.
+- CLI imports for EU AI Act modules changed from lazy `type: ignore` stubs to real imports.
+- `pyproject.toml` version bumped to `0.4.0`.
+
 ## [0.3.0] — 2026-03-13
 
 ### Added

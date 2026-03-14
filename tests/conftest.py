@@ -79,6 +79,7 @@ def make_context(
     cicd_platform: str = "none",
     git_initialized: bool = True,
     total_commits: int = 50,
+    security: SecurityTooling | None = None,
 ) -> ProjectContext:
     """Build a ProjectContext for testing."""
     return ProjectContext(
@@ -91,38 +92,48 @@ def make_context(
         cicd=CICDConfig(platform=cicd_platform),
         git_initialized=git_initialized,
         total_commits=total_commits,
-        security=SecurityTooling(),
+        security=security or SecurityTooling(),
     )
 
 
 def make_evidence(
     has_provenance: bool = False,
+    provenance_stats: dict[str, object] | None = None,
     has_fria: bool = False,
+    fria_path: str | None = None,
     has_annex_iv: bool = False,
+    annex_iv_path: str | None = None,
     has_guardrails: bool = False,
     guardrail_count: int = 0,
     has_quality_gates: bool = False,
     quality_gate_count: int = 0,
     has_budget_limits: bool = False,
     has_audit_trail: bool = False,
+    audit_entry_count: int = 0,
     has_human_review_gate: bool = False,
     has_changelog: bool = False,
+    changelog_entry_count: int = 0,
     has_dry_run: bool = False,
     has_rollback: bool = False,
 ) -> EvidenceBundle:
     """Build an EvidenceBundle for testing."""
     return EvidenceBundle(
         has_provenance=has_provenance,
+        provenance_stats=provenance_stats or {},
         has_fria=has_fria,
+        fria_path=fria_path,
         has_annex_iv=has_annex_iv,
+        annex_iv_path=annex_iv_path,
         has_guardrails=has_guardrails,
         guardrail_count=guardrail_count,
         has_quality_gates=has_quality_gates,
         quality_gate_count=quality_gate_count,
         has_budget_limits=has_budget_limits,
         has_audit_trail=has_audit_trail,
+        audit_entry_count=audit_entry_count,
         has_human_review_gate=has_human_review_gate,
         has_changelog=has_changelog,
+        changelog_entry_count=changelog_entry_count,
         has_dry_run=has_dry_run,
         has_rollback=has_rollback,
     )

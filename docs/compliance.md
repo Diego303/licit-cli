@@ -26,40 +26,74 @@ licit evalúa los artículos relevantes para **equipos de desarrollo que usan ag
 
 | Artículo | Nombre | Qué evalúa licit |
 |---|---|---|
-| Art. 9 | Sistema de gestión de riesgos | Existencia de FRIA, análisis de riesgos documentado |
-| Art. 10 | Datos y gobernanza de datos | Trazabilidad de datos de entrenamiento y proveniencia |
-| Art. 11 | Documentación técnica | Existencia de documentación Annex IV |
-| Art. 13 | Transparencia | Disclosure de uso de IA, provenance tracking |
-| Art. 14 | Supervisión humana | Human review gates en CI/CD, guardrails |
-| Art. 15 | Precisión, robustez y seguridad | Testing, herramientas de seguridad, SARIF findings |
-| Art. 17 | Sistema de gestión de calidad | Quality gates, auditoría, procesos documentados |
-| Art. 26 | Obligaciones de los deployers | Uso conforme, monitoreo, registro de actividades |
-| Art. 27 | FRIA | Evaluación de impacto en derechos fundamentales |
+| Art. 9(1) | Sistema de gestión de riesgos | Guardrails, quality gates, budget limits, security scanning |
+| Art. 10(1) | Datos y gobernanza de datos | Perspectiva deployer — documentar prácticas del proveedor |
+| Art. 12(1) | Record keeping — logging automático | Git history, audit trail, provenance tracking, OTel |
+| Art. 13(1) | Transparencia | Annex IV, changelog de configs, trazabilidad de requisitos |
+| Art. 14(1) | Supervisión humana | Dry-run, human review gate, quality gates, budget limits |
+| Art. 14(4)(a) | Oversight — entender capacidades | Misma evidencia que Art. 14(1) |
+| Art. 14(4)(d) | Oversight — capacidad de intervenir | Dry-run + rollback |
+| Art. 26(1) | Deployer — uso conforme | Configs de agentes presentes |
+| Art. 26(5) | Deployer — monitoreo | Misma evidencia que Art. 12(1) |
+| Art. 27(1) | FRIA | Documento FRIA completado |
+| Annex IV | Documentación técnica | Documento Annex IV generado |
+
+### Scoring del evaluador
+
+Cada artículo tiene un método de evaluación dedicado con scoring numérico. El score se convierte a status con `_score_to_status(score, compliant_at, partial_at)`:
+
+| Artículo | Indicadores (score) | Compliant at | Partial at |
+|---|---|---|---|
+| Art. 9 | Guardrails +1, quality gates +1, budget +1, scanning +1 | 3+ | 1+ |
+| Art. 10 | Siempre PARTIAL (deployer no entrena) | — | — |
+| Art. 12 | Git +1, audit trail +2, provenance +1, OTel +1 | 3+ | 1+ |
+| Art. 13 | Annex IV +2, changelog +1, traceability +1 | 2+ | 1+ |
+| Art. 14 | Dry-run +1, review gate +2, quality gates +1, budget +1 | 3+ | 1+ |
+
+El evaluador genera recomendaciones accionables con comandos licit concretos (ej: "Run: licit trace -- to start tracking code provenance").
 
 ### FRIA — Evaluación de Impacto en Derechos Fundamentales
 
-El FRIA (Fundamental Rights Impact Assessment) es obligatorio para sistemas de IA de alto riesgo según el Art. 27. licit genera un FRIA interactivo en 5 pasos:
+El FRIA (Fundamental Rights Impact Assessment) es obligatorio para sistemas de IA de alto riesgo según el Art. 27. licit genera un FRIA interactivo en 5 pasos con 16 preguntas y auto-detección de 8 campos:
 
-1. **Descripción del sistema**: Qué hace, para qué se usa, quiénes son los usuarios.
-2. **Identificación de derechos afectados**: Qué derechos fundamentales podrían verse impactados.
-3. **Evaluación de riesgos**: Probabilidad e impacto de cada riesgo.
-4. **Medidas de mitigación**: Qué controles se implementan.
-5. **Conclusiones y recomendaciones**: Evaluación final.
+1. **System Description** (5 preguntas): Propósito, tecnología AI, modelos, alcance, revisión humana.
+2. **Fundamental Rights Identification** (4 preguntas): Datos personales, empleo, seguridad, discriminación.
+3. **Impact Assessment** (3 preguntas): Nivel de riesgo, impacto máximo, velocidad de detección.
+4. **Mitigation Measures** (5 preguntas): Guardrails, scanning, testing, audit trail, medidas adicionales.
+5. **Monitoring & Review** (3 preguntas): Frecuencia de revisión, responsable, proceso de incidentes.
+
+**Auto-detección:** Para campos como `system_purpose`, `guardrails`, `security_scanning`, `testing`, y `audit_trail`, licit infiere la respuesta desde el `ProjectContext` y `EvidenceBundle` del proyecto.
 
 **Comando:**
 ```bash
-licit fria
+licit fria            # Cuestionario interactivo nuevo
+licit fria --update   # Actualizar FRIA existente
 ```
+
+**Archivos generados:**
+- `.licit/fria-data.json` — Datos raw (JSON, reutilizable con `--update`)
+- `.licit/fria-report.md` — Reporte Markdown con template Jinja2
 
 ### Annex IV — Documentación Técnica
 
-El Anexo IV define la documentación técnica requerida para sistemas de IA. licit genera esta documentación auto-poblándola desde:
+El Anexo IV define la documentación técnica requerida para sistemas de IA. licit genera esta documentación auto-poblándola desde 27 variables de template extraídas de:
 
 - Metadatos del proyecto (`pyproject.toml`, `package.json`)
 - Configuración de CI/CD
 - Configuraciones de agentes IA
-- Frameworks de testing
-- Herramientas de seguridad
+- Frameworks de testing y herramientas de seguridad
+- Datos de provenance (% código AI)
+- Evidencia de guardrails, quality gates, budget limits, FRIA, audit trail
+
+**6 secciones auto-generadas:**
+1. General Description — Propósito, componentes AI, lenguajes, frameworks
+2. Development Process — Version control, provenance, configs de agentes
+3. Monitoring & Control — CI/CD, audit trail, changelog
+4. Risk Management — Guardrails, quality gates, budget, oversight, FRIA
+5. Testing & Validation — Test framework, security scanning
+6. Changes & Lifecycle — Mecanismos de tracking
+
+Cada sección sin evidencia genera una **recomendación accionable** (ej: "Run `licit trace` to begin tracking code provenance").
 
 **Comando:**
 ```bash
@@ -135,7 +169,7 @@ ASI-06 (Insufficient Monitoring)
 | CI/CD configs | Human review gates, steps de seguridad | **Funcional** (v0.1.0) |
 | Architect reports | Audit trail, calidad de ejecución | Fase 7 |
 | SARIF files | Hallazgos de seguridad (vulnerabilidades) | Fase 7 |
-| `.licit/` data | FRIA, Annex IV, changelog, provenance store | Parcial (provenance + changelog funcionales) |
+| `.licit/` data | FRIA, Annex IV, changelog, provenance store | **Funcional** (v0.4.0 — todos los generadores operativos) |
 
 La evidencia de provenance (`licit trace`) alimenta directamente los artículos de transparencia (Art. 13) y trazabilidad (Art. 10) del EU AI Act. El changelog de configs (`licit changelog`) alimenta los artículos de transparencia (Art. 13) y obligaciones de deployers (Art. 26). Ambos alimentan los controles de monitoring (ASI-06, ASI-10) del OWASP Agentic Top 10.
 
