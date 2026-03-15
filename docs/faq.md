@@ -85,13 +85,13 @@ $ licit --verbose status
 
 ### ¿Qué comandos están funcionales?
 
-Todos los 10 comandos están funcionales desde v0.6.0:
+Todos los 10 comandos están funcionales desde v0.7.0:
 
 | Comando | Fase | Estado actual |
 |---|---|---|
 | `init` | 1 | **Funcional** (v0.1.0) |
-| `status` | 1 | **Funcional** (v0.1.0) |
-| `connect` | 1 | **Funcional** (v0.1.0) |
+| `status` | 1+7 | **Funcional** (v0.7.0 — connectors + security findings) |
+| `connect` | 1+7 | **Funcional** (v0.7.0 — availability feedback) |
 | `trace` | 2 | **Funcional** (v0.2.0) |
 | `changelog` | 3 | **Funcional** (v0.3.0) |
 | `fria` | 4 | **Funcional** (v0.4.0) |
@@ -153,19 +153,21 @@ structlog.configure(
 
 El error más común es `ValueError: I/O operation on closed file` cuando Click's `CliRunner` cierra stderr y structlog intenta escribir en él. La solución está en usar `WriteLoggerFactory()` (no `PrintLoggerFactory(file=sys.stderr)`).
 
-### mypy muestra errores en imports de módulos futuros
+### mypy muestra errores de import circular
 
-Los imports de módulos de fases futuras (como `licit.reports.unified`) usan `# type: ignore[import-not-found]`:
+Si ves errores de circular import al trabajar con connectors, asegúrate de usar `TYPE_CHECKING`:
 
 ```python
-from licit.reports.unified import (  # type: ignore[import-not-found]
-    UnifiedReportGenerator,
-)
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from licit.core.evidence import EvidenceBundle
 ```
 
-El comentario `type: ignore` debe ir en la línea del `from`, no en las líneas de los nombres importados. Si ruff reformatea el import a multilínea, verifica que el comentario quede en la línea correcta.
+Esto es necesario porque `evidence.py` importa los connectors, y los connectors necesitan el tipo `EvidenceBundle` para sus firmas.
 
-> **Nota**: Los módulos de Fases 2-5 (provenance, changelog, eu_ai_act, owasp_agentic) ya están implementados y se importan directamente sin `type: ignore`. Solo `reports/` (Phase 6) usa stubs lazy.
+> **Nota**: Todos los módulos de Fases 1-7 usan imports directos sin `type: ignore`. No hay stubs lazy en ningún módulo.
 
 ### ruff reporta UP042 en mis enums
 
@@ -243,7 +245,7 @@ Los archivos que **no** debes commitear:
 
 ---
 
-## Problemas conocidos (v0.6.0)
+## Problemas conocidos (v0.7.0)
 
 | Problema | Estado | Workaround |
 |---|---|---|

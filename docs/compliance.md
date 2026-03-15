@@ -208,8 +208,8 @@ licit verify --framework all     # Evaluar EU AI Act + OWASP
 | Agent config changelog | Cambios en configs de agentes con severidad | **Funcional** (v0.3.0) |
 | Agent configs | Guardrails, modelos usados, reglas de código | **Funcional** (v0.1.0) |
 | CI/CD configs | Human review gates, steps de seguridad | **Funcional** (v0.1.0) |
-| Architect reports | Audit trail, calidad de ejecución | Fase 7 |
-| SARIF files | Hallazgos de seguridad (vulnerabilidades) | Fase 7 |
+| Architect reports | Audit trail, guardrails, quality gates, budget | **Funcional** (v0.7.0) |
+| SARIF files | Hallazgos de seguridad (vulnerabilidades) | **Funcional** (v0.7.0) |
 | `.licit/` data | FRIA, Annex IV, changelog, provenance store | **Funcional** (v0.4.0+) |
 
 La evidencia de provenance (`licit trace`) alimenta directamente los artículos de transparencia (Art. 13) y trazabilidad (Art. 10) del EU AI Act. El changelog de configs (`licit changelog`) alimenta los artículos de transparencia (Art. 13) y obligaciones de deployers (Art. 26). Ambos alimentan los controles de monitoring (ASI-06, ASI-10) del OWASP Agentic Top 10.

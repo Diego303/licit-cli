@@ -237,7 +237,7 @@ def fria(ctx: click.Context, update: bool) -> None:
     config = load_config(ctx.obj.get("config_path"))
     detector = ProjectDetector()
     context = detector.detect(root)
-    evidence = EvidenceCollector(root, context).collect()
+    evidence = EvidenceCollector(root, context, config).collect()
 
     from licit.frameworks.eu_ai_act.fria import FRIAGenerator
 
@@ -280,7 +280,7 @@ def annex_iv(ctx: click.Context, organization: str | None, product: str | None) 
     config = load_config(ctx.obj.get("config_path"))
     detector = ProjectDetector()
     context = detector.detect(root)
-    evidence = EvidenceCollector(root, context).collect()
+    evidence = EvidenceCollector(root, context, config).collect()
 
     from licit.frameworks.eu_ai_act.annex_iv import AnnexIVGenerator
 
@@ -328,7 +328,7 @@ def report(ctx: click.Context, framework: str, fmt: str, output: str | None) -> 
     config = load_config(ctx.obj.get("config_path"))
     detector = ProjectDetector()
     context = detector.detect(root)
-    evidence = EvidenceCollector(root, context).collect()
+    evidence = EvidenceCollector(root, context, config).collect()
 
     from licit.reports.unified import UnifiedReportGenerator
 
@@ -380,7 +380,7 @@ def gaps(ctx: click.Context, framework: str) -> None:
     config = load_config(ctx.obj.get("config_path"))
     detector = ProjectDetector()
     context = detector.detect(root)
-    evidence = EvidenceCollector(root, context).collect()
+    evidence = EvidenceCollector(root, context, config).collect()
 
     from licit.reports.gap_analyzer import GapAnalyzer
 
@@ -425,7 +425,7 @@ def verify(ctx: click.Context, framework: str) -> None:
     config = load_config(ctx.obj.get("config_path"))
     detector = ProjectDetector()
     context = detector.detect(root)
-    evidence = EvidenceCollector(root, context).collect()
+    evidence = EvidenceCollector(root, context, config).collect()
 
     frameworks_to_eval = _get_frameworks(framework, config)
 
@@ -467,7 +467,7 @@ def status(ctx: click.Context) -> None:
     config = load_config(ctx.obj.get("config_path"))
     detector = ProjectDetector()
     context = detector.detect(root)
-    evidence = EvidenceCollector(root, context).collect()
+    evidence = EvidenceCollector(root, context, config).collect()
 
     click.echo("\n  licit Status")
     click.echo(f"  {'─' * 40}")
@@ -494,14 +494,24 @@ def status(ctx: click.Context) -> None:
     click.echo(f"    {'[x]' if evidence.has_annex_iv else '[ ]'} Annex IV documentation")
 
     click.echo("\n  Connectors:")
+    arch_status = "enabled" if config.connectors.architect.enabled else "detected"
     click.echo(
         f"    {'[x]' if context.has_architect else '[ ]'} "
-        f"architect ({context.architect_config_path or 'not detected'})"
+        f"architect ({context.architect_config_path or 'not detected'}"
+        f"{', ' + arch_status if context.has_architect else ''})"
     )
+    vigil_status = "enabled" if config.connectors.vigil.enabled else "detected"
     click.echo(
         f"    {'[x]' if context.security.has_vigil else '[ ]'} "
-        f"vigil ({context.security.vigil_config_path or 'not detected'})"
+        f"vigil ({context.security.vigil_config_path or 'not detected'}"
+        f"{', ' + vigil_status if context.security.has_vigil else ''})"
     )
+    if evidence.security_findings_total > 0:
+        click.echo(
+            f"    Security findings: {evidence.security_findings_total} total"
+            f" ({evidence.security_findings_critical} critical,"
+            f" {evidence.security_findings_high} high)"
+        )
 
     click.echo(f"\n  Agent Configs ({len(context.agent_configs)}):")
     for cfg in context.agent_configs:
@@ -523,11 +533,37 @@ def connect(ctx: click.Context, connector: str, enable: bool) -> None:
       licit connect architect --disable
     """
     config = load_config(ctx.obj.get("config_path"))
+    root = str(Path.cwd())
 
     if connector == "architect":
         config.connectors.architect.enabled = enable
+        if enable:
+            # Auto-detect config path if not set
+            detector = ProjectDetector()
+            context = detector.detect(root)
+            if context.architect_config_path and not config.connectors.architect.config_path:
+                config.connectors.architect.config_path = context.architect_config_path
+
+            from licit.connectors.architect import ArchitectConnector
+
+            arch_conn = ArchitectConnector(root, config.connectors.architect)
+            if arch_conn.available():
+                click.echo(f"  architect data found at: {config.connectors.architect.reports_dir}")
+            else:
+                click.echo("  Warning: no architect data detected on disk")
+
     elif connector == "vigil":
         config.connectors.vigil.enabled = enable
+        if enable:
+            from licit.connectors.vigil import VigilConnector
+
+            detector = ProjectDetector()
+            context = detector.detect(root)
+            vig_conn = VigilConnector(root, config.connectors.vigil, context.security.sarif_files)
+            if vig_conn.available():
+                click.echo("  vigil data found")
+            else:
+                click.echo("  Warning: no vigil/SARIF data detected on disk")
 
     save_config(config, ctx.obj.get("config_path"))
     state = "enabled" if enable else "disabled"

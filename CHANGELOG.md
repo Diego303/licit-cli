@@ -9,6 +9,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [0.7.0] — 2026-03-15
+
+### Added
+
+#### Phase 7 — Connectors + Integration
+
+- **Connector protocol** (`src/licit/connectors/base.py`)
+  - `Connector` Protocol (`@runtime_checkable`) defining `name`, `enabled`, `available()`, `collect(evidence)` interface.
+  - `ConnectorResult` dataclass with computed `success` property (`files_read > 0 and no errors`) and `has_errors` property.
+  - `EvidenceBundle` imported under `TYPE_CHECKING` only to prevent circular imports.
+- **Architect connector** (`src/licit/connectors/architect.py`)
+  - `ArchitectConnector` reads 3 data sources: JSON reports (`_read_reports`), audit JSONL logs (`_read_audit_log`), and config YAML (`_read_config`).
+  - `ArchitectReport` and `AuditEntry` dataclasses with defensive `isinstance` checks on all JSON fields.
+  - Config parsing extracts guardrails, quality gates, budget limits, dry-run/rollback capabilities.
+  - `guardrail_count` uses `+=` (additive) so multiple sources can contribute.
+  - `available()` checks for reports directory or config file on disk.
+  - Malformed lines in audit JSONL are logged as errors but don't abort the read.
+- **Vigil connector** (`src/licit/connectors/vigil.py`)
+  - `VigilConnector` reads SARIF 2.1.0 files and CycloneDX SBOM.
+  - `_resolve_sarif_paths()` supports explicit file, explicit directory (globs `*.sarif`), and auto-detected files from `ProjectContext.security.sarif_files`, with deduplication.
+  - SARIF parsing refactored into 4 focused methods: `_parse_run`, `_extract_tool_name`, `_parse_finding`, `_extract_location` — each under C901/10 complexity.
+  - Counts findings by severity: `error` → critical, `warning` → high, `note` → medium, other → low.
+  - Parses all SARIF runs regardless of tool name (not limited to vigil-named tools).
+  - SBOM reading validates JSON structure and counts as a file read (V0 scope; V1 will feed into OWASP ASI03).
+  - SARIF severity constants: `SARIF_LEVEL_CRITICAL`, `SARIF_LEVEL_HIGH`, `SARIF_LEVEL_MEDIUM`, `SARIF_LEVEL_LOW`.
+- **EvidenceCollector refactored** (`src/licit/core/evidence.py`)
+  - `EvidenceCollector.__init__` now accepts optional `config: LicitConfig` parameter (backwards compatible).
+  - When config is provided and connector is enabled, delegates to formal connector classes.
+  - When config is absent or connector is disabled, falls back to inline detection that delegates to temporary connector instances — zero code duplication between paths.
+  - `connector_results` property exposes `ConnectorResult` list from last `collect()` call.
+  - Removed direct `json` and `yaml` imports (no longer needed).
+- **CLI enhancements** (`src/licit/cli.py`)
+  - All `EvidenceCollector` calls now pass `config` for connector support.
+  - `licit connect architect`: auto-detects `config_path` if not set, shows data availability via `available()`.
+  - `licit connect vigil`: detects SARIF files from project context, shows availability.
+  - `licit status`: shows connector as "enabled" vs "detected", displays security findings count when > 0.
+- **Config example** (`.licit.example.yaml`)
+  - Full documented configuration with all fields including `connectors.architect.audit_log`, `connectors.vigil.sarif_path`, `connectors.vigil.sbom_path`.
+- **Integration tests** (`tests/test_integration/test_full_flow.py`)
+  - 10 end-to-end tests on a synthetic git project with AI commits, architect data, and vigil SARIF.
+  - `TestFullFlow`: init → trace → report → gaps → verify → status.
+  - `TestConnectCommand`: enable/disable connectors.
+  - `TestConnectorEnrichedReport`: architect enrichment, changelog.
+  - Uses `monkeypatch.chdir` for proper working directory isolation.
+- **Test fixtures** (`tests/test_connectors/fixtures/`)
+  - `architect_report.json`, `architect_report_2.json` — sample architect task reports.
+  - `architect_audit.jsonl` — 6-entry audit log with task lifecycle events.
+  - `architect_config.yaml` — config with guardrails (7 rules), quality gates (3), budget ($50).
+  - `vigil_report.sarif` — SARIF 2.1.0 with 3 findings (1 error, 1 warning, 1 note).
+  - `sbom.json` — CycloneDX SBOM with 3 components.
+
+#### QA Hardening — Phase 7
+
+- **Bug fixes** — 4 issues found and fixed during QA review:
+  - **(High)** `vigil.py _parse_run()`: Cyclomatic complexity 18 (C901) — 18 nested branches for tool name extraction, finding parsing, and location extraction. Refactored into 3 focused static methods: `_extract_tool_name()`, `_parse_finding()`, `_extract_location()`.
+  - **(Medium)** `vigil.py _read_sbom()`: `evidence` parameter unused (ARG002) — dead parameter removed from signature and call site.
+  - **(Medium)** `architect.py _read_audit_log()`: `for line in ...: line = line.strip()` overwrote loop variable (PLW2901) — renamed to `raw_line`/`stripped`.
+  - **(Medium)** `architect.py _read_config()`: `guardrail_count = X` used `=` instead of `+=` — second source would overwrite first. Changed to `+=` with regression test.
+- **83 new Phase 7 tests** across 4 test files:
+  - `test_architect.py` (22) — Protocol conformance (4), reports (4), audit log (4), config (6), availability (3), full collect (1).
+  - `test_vigil.py` (22) — Protocol (3), SARIF reading (8), SARIF parsing (4), SBOM (3), availability (4).
+  - `test_qa_edge_cases.py` (20) — Unicode in reports/SARIF (2), whitespace YAML (1), guardrail additive (1), 500-line audit log (1), minimal report (1), default config path (1), dry_run: false (1), 100 SARIF findings (1), unknown level (1), no tool section (1), empty dir (1), SBOM non-object (1), empty runs (1), ConnectorResult defaults (2), cross-module both connectors (1), null config paths (2), CLI invalid connector (1).
+  - `test_evidence.py` (9 added) — Connector delegation (3), connector_results reset (1), ConnectorResult computed (4), non-vigil SARIF (1).
+  - `test_full_flow.py` (10) — E2E init/trace/report/gaps/verify/status (6), connect enable/disable (2), enriched report/changelog (2).
+
+### Changed
+
+- Test suite expanded from 706 to 789 tests (706 previous + 83 Phase 7).
+- `EvidenceCollector` now accepts optional `LicitConfig` parameter for formal connector support.
+- Inline evidence collection paths (architect, vigil) now delegate to connector classes instead of duplicating parsing logic.
+- `licit connect` command enhanced with data availability feedback.
+- `licit status` command enhanced with connector enable state and security findings display.
+- SARIF inline collector no longer filters by vigil tool name — all SARIF tools are counted (consistent with formal `VigilConnector`).
+- `pyproject.toml` version bumped to `0.7.0`.
+
 ## [0.6.0] — 2026-03-15
 
 ### Added

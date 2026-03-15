@@ -297,9 +297,14 @@ frameworks:
 
 connectors:
   architect:
-    enabled: false
+    enabled: false              # Auto-enabled if .architect/ detected
+    reports_dir: .architect/reports
+    # audit_log: .architect/audit.jsonl
+    config_path: .architect/config.yaml
   vigil:
-    enabled: false
+    enabled: false              # Auto-enabled if .vigil.yaml detected
+    # sarif_path: results.sarif   # File or directory of .sarif files
+    # sbom_path: sbom.json        # CycloneDX SBOM
 
 reports:
   default_format: markdown
@@ -313,13 +318,38 @@ licit is **fully standalone** — connectors enrich, they don't enable.
 
 | Connector | What it reads | Value added |
 |-----------|--------------|-------------|
-| **architect** | `.architect/reports/`, config | Guardrails, quality gates, budget limits, audit trail |
-| **vigil** | SARIF files | Security findings with severity levels |
+| **architect** | Reports, audit log, config YAML | Guardrails, quality gates, budget limits, audit trail, dry-run/rollback capabilities |
+| **vigil** | SARIF files, CycloneDX SBOM | Security findings with severity levels (critical/high/medium/low) |
 
 ```bash
-licit connect architect --enable
-licit connect vigil --enable
+licit connect architect          # Enable + auto-detect config
+licit connect vigil --enable     # Enable vigil connector
+licit connect architect --disable  # Disable a connector
 ```
+
+When enabled, connectors are shown in `licit status`:
+
+```
+  Connectors:
+    [x] architect (.architect/config.yaml, enabled)
+    [x] vigil (.vigil.yaml, enabled)
+    Security findings: 3 total (1 critical, 1 high)
+```
+
+### Architect Connector
+
+Reads three data sources from the [architect](https://github.com/Diego303/architect) agent:
+
+- **Reports** (`.architect/reports/*.json`) — task completion records with model, cost, files changed. Each report counts as an audit trail entry.
+- **Audit log** (`.architect/audit.jsonl`) — append-only JSONL with task lifecycle events (start, file_write, test_run, complete).
+- **Config** (`.architect/config.yaml`) — extracts guardrails (protected files, blocked commands, code rules), quality gates, budget limits, and dry-run/rollback capabilities.
+
+### Vigil Connector
+
+Reads [SARIF 2.1.0](https://sarifweb.azurewebsites.net/) files from any security scanner (vigil, Semgrep, CodeQL, etc.):
+
+- **SARIF files** — Parses all runs regardless of tool name. Findings counted by severity: `error` → critical, `warning` → high, `note` → medium.
+- **SBOM** (CycloneDX JSON) — Validated and read for supply-chain visibility (V1: will feed into OWASP ASI03 evaluation).
 
 ## Project Structure
 
@@ -363,7 +393,10 @@ src/licit/
 │   ├── json_fmt.py                   # JSON report renderer
 │   ├── html.py                       # Self-contained HTML renderer (no deps)
 │   └── summary.py                    # Terminal summary with progress bars
-├── connectors/                         # architect + vigil (Phase 7)
+├── connectors/                         # ✅ Phase 7 — complete
+│   ├── base.py                        # Connector Protocol + ConnectorResult
+│   ├── architect.py                   # Architect: reports, audit log, config
+│   └── vigil.py                       # Vigil: SARIF parsing, SBOM reading
 └── logging/                            # structlog configuration
 ```
 
@@ -391,7 +424,7 @@ Full documentation (in Spanish) is available in the [`docs/`](docs/) directory:
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests (706 tests)
+# Run tests (789 tests)
 pytest tests/ -q
 
 # Lint
@@ -413,7 +446,7 @@ mypy src/licit/ --strict
 
 | Version | Key Features |
 |---------|-------------|
-| **V0** (current) | CLI, provenance tracking (git + Claude Code sessions), EU AI Act (11 articles), OWASP Agentic Top 10, FRIA, Annex IV, unified reports (MD/JSON/HTML), gap analysis, CI/CD gate |
+| **V0** (current) | CLI, provenance tracking (git + Claude Code sessions), EU AI Act (11 articles), OWASP Agentic Top 10, FRIA, Annex IV, unified reports (MD/JSON/HTML), gap analysis, CI/CD gate, architect + vigil connectors |
 | **V0.x** | Cursor/Codex session readers, PDF reports, GitHub Action |
 | **V1** | NIST AI RMF, ISO 42001, plugin system, Sigstore, MCP Server |
 | **V2** | Web dashboard, multi-project, trend analysis, AI remediation |

@@ -1,0 +1,13 @@
+{
+  "task_id": "task-001",
+  "status": "completed",
+  "model": "claude-sonnet-4",
+  "cost_usd": 0.42,
+  "files_changed": [
+    "src/auth.py",
+    "src/models.py",
+    "tests/test_auth.py"
+  ],
+  "timestamp": "2026-03-10T14:30:00Z",
+  "summary": "Implemented authentication module with JWT tokens"
+}

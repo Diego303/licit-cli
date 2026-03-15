@@ -1,0 +1,6 @@
+{"event": "task_start", "timestamp": "2026-03-10T14:00:00Z", "task_id": "task-001", "model": "claude-sonnet-4"}
+{"event": "file_write", "timestamp": "2026-03-10T14:15:00Z", "task_id": "task-001", "path": "src/auth.py"}
+{"event": "test_run", "timestamp": "2026-03-10T14:25:00Z", "task_id": "task-001", "passed": true}
+{"event": "task_complete", "timestamp": "2026-03-10T14:30:00Z", "task_id": "task-001", "cost_usd": 0.42}
+{"event": "task_start", "timestamp": "2026-03-11T09:00:00Z", "task_id": "task-002", "model": "claude-sonnet-4"}
+{"event": "task_complete", "timestamp": "2026-03-11T09:15:00Z", "task_id": "task-002", "cost_usd": 0.18}

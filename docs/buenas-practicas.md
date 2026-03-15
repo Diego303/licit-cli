@@ -239,21 +239,36 @@ Prioriza cerrar las brechas de mayor prioridad primero.
 
 ### 15. Habilita conectores cuando sea posible
 
-Si usas Architect o Vigil, habilítalos. Aportan evidencia adicional:
+Si usas Architect o Vigil, habilítalos. Aportan evidencia que mejora la evaluación:
 
 ```bash
 licit connect architect
+# → architect data found at: .architect/reports
+# → Connector 'architect' enabled.
+
 licit connect vigil
+# → vigil data found
+# → Connector 'vigil' enabled.
 ```
 
 **Architect aporta:**
-- Audit trail de ejecuciones
-- Configuración de guardrails
-- Quality gates
+- Audit trail de ejecuciones (reports JSON + audit JSONL)
+- Configuración de guardrails (protected files, blocked commands, code rules)
+- Quality gates y budget limits
+- Capacidades dry-run y rollback
 
 **Vigil aporta:**
-- Hallazgos de seguridad (SARIF)
-- SBOM (Software Bill of Materials)
+- Hallazgos de seguridad (SARIF 2.1.0) con severidad (critical/high/medium/low)
+- SBOM — Software Bill of Materials (CycloneDX)
+
+**Configura el audit log para máxima evidencia:**
+```yaml
+connectors:
+  architect:
+    enabled: true
+    config_path: .architect/config.yaml
+    audit_log: .architect/audit.jsonl   # ← Esto añade entries al audit trail
+```
 
 ### 16. Integra herramientas de seguridad
 

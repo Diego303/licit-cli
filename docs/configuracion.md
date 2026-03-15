@@ -197,42 +197,92 @@ frameworks:
 
 ### connectors — Integraciones externas
 
+> **Estado**: **Funcional** desde v0.7.0. Los conectores son formales: implementan el `Connector` Protocol, manejan errores gracefully, y reportan resultados via `ConnectorResult`.
+
+Los conectores son **opcionales** — licit funciona completamente sin ellos. Cuando están habilitados, enriquecen el `EvidenceBundle` con datos adicionales que mejoran la evaluación de compliance.
+
+**Auto-detección**: `licit init` detecta automáticamente la presencia de architect (`.architect/`) y vigil (`.vigil.yaml`) y habilita los conectores correspondientes.
+
+**Fallback inline**: Cuando no hay config (`LicitConfig`) disponible, `EvidenceCollector` construye conectores temporales con rutas auto-detectadas. Esto garantiza backwards compatibility.
+
 #### connectors.architect
 
-Integración con Architect para leer reports de auditoría y configuración de guardrails.
+Integración con Architect para leer reports de auditoría, audit logs, y configuración de guardrails.
 
 | Campo | Tipo | Default | Descripción |
 |---|---|---|---|
-| `enabled` | bool | `false` | Habilitar conector |
-| `reports_dir` | str | `.architect/reports` | Dir de reports |
+| `enabled` | bool | `false` | Habilitar conector (auto-enabled si `.architect/` detectado) |
+| `reports_dir` | str | `.architect/reports` | Directorio de reports JSON |
 | `audit_log` | str? | `null` | Ruta al log de auditoría JSONL |
-| `config_path` | str? | `null` | Ruta al config de architect |
+| `config_path` | str? | `null` | Ruta al config YAML de architect |
 
-**Ejemplo:**
+**Fuentes de datos que lee:**
+
+| Fuente | Formato | Evidencia extraída |
+|---|---|---|
+| Reports | JSON (`reports_dir/*.json`) | Audit trail (`has_audit_trail`, `audit_entry_count`) |
+| Audit log | JSONL (`audit_log`) | Audit trail (entries adicionales al conteo) |
+| Config | YAML (`config_path`) | Guardrails, quality gates, budget, dry-run, rollback |
+
+**Campos del config YAML que extrae:**
+
+```yaml
+# .architect/config.yaml
+guardrails:
+  protected_files: [.env, secrets.yaml]    # → guardrail_count += N
+  blocked_commands: [rm -rf]               # → guardrail_count += N
+  code_rules: [no-eval]                    # → guardrail_count += N
+  quality_gates: [lint, test]              # → has_quality_gates, quality_gate_count
+costs:
+  budget_usd: 50.0                         # → has_budget_limits
+dry_run: true                              # → has_dry_run (default True si ausente)
+rollback: true                             # → has_rollback (default True si ausente)
+```
+
+**Ejemplo completo:**
 ```yaml
 connectors:
   architect:
     enabled: true
+    reports_dir: .architect/reports
     config_path: .architect/config.yaml
     audit_log: .architect/audit.jsonl
 ```
 
 #### connectors.vigil
 
-Integración con Vigil para leer hallazgos de seguridad en formato SARIF.
+Integración con Vigil y otros scanners de seguridad que producen SARIF 2.1.0.
 
 | Campo | Tipo | Default | Descripción |
 |---|---|---|---|
-| `enabled` | bool | `false` | Habilitar conector |
-| `sarif_path` | str? | `null` | Ruta al archivo SARIF |
-| `sbom_path` | str? | `null` | Ruta al SBOM |
+| `enabled` | bool | `false` | Habilitar conector (auto-enabled si `.vigil.yaml` detectado) |
+| `sarif_path` | str? | `null` | Archivo SARIF o directorio con `*.sarif` |
+| `sbom_path` | str? | `null` | Ruta al SBOM CycloneDX (JSON) |
 
-**Ejemplo:**
+**Resolución de SARIF paths:**
+
+1. `sarif_path` explícito: si es archivo, lo lee; si es directorio, lee todos los `*.sarif`.
+2. Auto-detected: archivos `.sarif` encontrados por `ProjectDetector` en el proyecto.
+3. Deduplicación: si el mismo archivo aparece en ambas fuentes, se lee una sola vez.
+
+**Mapeo de severidad SARIF:**
+
+| Level SARIF | Clasificación licit |
+|---|---|
+| `error` | `security_findings_critical` |
+| `warning` | `security_findings_high` |
+| `note` | (contado en total, no en critical/high) |
+| otro | (contado en total) |
+
+> **Nota**: Se parsean **todos** los runs del SARIF, sin importar el nombre del tool (vigil, Semgrep, CodeQL, etc.).
+
+**Ejemplo completo:**
 ```yaml
 connectors:
   vigil:
     enabled: true
-    sarif_path: reports/vigil-results.sarif
+    sarif_path: reports/security/    # Directorio con archivos .sarif
+    sbom_path: sbom.json             # CycloneDX SBOM (V1: alimentará OWASP ASI03)
 ```
 
 ### fria — Evaluación de Impacto en Derechos Fundamentales

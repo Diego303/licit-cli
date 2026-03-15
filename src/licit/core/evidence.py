@@ -1,12 +1,16 @@
 """Collects evidence from all available sources for compliance evaluation."""
 
-import json
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import structlog
-import yaml
 
+from licit.config.schema import LicitConfig
+from licit.connectors.architect import ArchitectConnector
+from licit.connectors.base import ConnectorResult
+from licit.connectors.vigil import VigilConnector
 from licit.core.project import ProjectContext
 
 logger = structlog.get_logger()
@@ -71,18 +75,36 @@ class EvidenceBundle:
 class EvidenceCollector:
     """Collects evidence from project context, connectors, and licit's own data."""
 
-    def __init__(self, root_dir: str, context: ProjectContext) -> None:
+    def __init__(
+        self,
+        root_dir: str,
+        context: ProjectContext,
+        config: LicitConfig | None = None,
+    ) -> None:
         self.root = Path(root_dir)
         self.context = context
+        self.config = config
+        self._connector_results: list[ConnectorResult] = []
+
+    @property
+    def connector_results(self) -> list[ConnectorResult]:
+        """Results from the last collect() call's connector runs."""
+        return list(self._connector_results)
 
     def collect(self) -> EvidenceBundle:
         """Collect all available evidence."""
         ev = EvidenceBundle()
+        self._connector_results = []
 
+        # Licit's own data
         self._collect_licit_data(ev)
+
+        # Project-level detection (CI/CD heuristics)
         self._collect_project_evidence(ev)
-        self._collect_architect_evidence(ev)
-        self._collect_vigil_evidence(ev)
+
+        # Connectors (architect, vigil) — use formal connectors if config
+        # available, fall back to inline detection for backwards compatibility
+        self._run_connectors(ev)
 
         logger.info(
             "evidence_collected",
@@ -90,6 +112,7 @@ class EvidenceCollector:
             has_fria=ev.has_fria,
             has_guardrails=ev.has_guardrails,
             has_audit_trail=ev.has_audit_trail,
+            connectors_run=len(self._connector_results),
         )
         return ev
 
@@ -129,86 +152,85 @@ class EvidenceCollector:
 
     def _collect_project_evidence(self, ev: EvidenceBundle) -> None:
         """Collect evidence from project configuration files."""
-        if self.context.architect_config_path:
-            self._parse_architect_config(ev)
-
         # CI/CD with GitHub Actions likely has PR review process
         if self.context.cicd.platform == "github-actions":
             ev.has_human_review_gate = True
 
-    def _parse_architect_config(self, ev: EvidenceBundle) -> None:
-        """Extract evidence from architect config YAML."""
-        try:
-            config_path = self.root / (self.context.architect_config_path or "")
-            if not config_path.exists():
-                return
-            data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-            if not isinstance(data, dict):
-                return
+    def _run_connectors(self, ev: EvidenceBundle) -> None:
+        """Run enabled connectors or fall back to inline detection."""
+        architect_ran = self._run_architect_connector(ev)
+        vigil_ran = self._run_vigil_connector(ev)
 
-            guardrails = data.get("guardrails", {})
-            if isinstance(guardrails, dict) and guardrails:
-                ev.has_guardrails = True
-                ev.guardrail_count = (
-                    len(guardrails.get("protected_files") or [])
-                    + len(guardrails.get("blocked_commands") or [])
-                    + len(guardrails.get("code_rules") or [])
-                )
-                quality_gates = guardrails.get("quality_gates")
-                if quality_gates:
-                    ev.has_quality_gates = True
-                    ev.quality_gate_count = (
-                        len(quality_gates) if isinstance(quality_gates, list) else 0
-                    )
+        # Backwards compatibility: if no formal config was provided,
+        # use inline detection methods from the project context
+        if not architect_ran:
+            self._collect_architect_evidence_inline(ev)
+        if not vigil_ran:
+            self._collect_vigil_evidence_inline(ev)
 
-            costs = data.get("costs", {})
-            if isinstance(costs, dict) and costs.get("budget_usd"):
-                ev.has_budget_limits = True
+    def _run_architect_connector(self, ev: EvidenceBundle) -> bool:
+        """Run the architect connector if config is available and enabled."""
+        if self.config is None:
+            return False
 
-            if data.get("dry_run") is not False:
-                ev.has_dry_run = True
-            if data.get("rollback") is not False:
-                ev.has_rollback = True
+        connector = ArchitectConnector(
+            str(self.root),
+            self.config.connectors.architect,
+        )
+        if not connector.enabled:
+            return False
 
-        except (yaml.YAMLError, OSError, KeyError, TypeError, ValueError) as exc:
-            logger.debug("architect_config_parse_error", error=str(exc))
+        result = connector.collect(ev)
+        self._connector_results.append(result)
+        return True
 
-    def _collect_architect_evidence(self, ev: EvidenceBundle) -> None:
-        """Collect evidence from architect reports (if available)."""
-        reports_dir = self.root / ".architect" / "reports"
-        if reports_dir.exists():
-            reports = list(reports_dir.glob("*.json"))
-            if reports:
-                ev.has_audit_trail = True
-                ev.audit_entry_count = len(reports)
+    def _run_vigil_connector(self, ev: EvidenceBundle) -> bool:
+        """Run the vigil connector if config is available and enabled."""
+        if self.config is None:
+            return False
 
-    def _collect_vigil_evidence(self, ev: EvidenceBundle) -> None:
-        """Collect evidence from vigil SARIF files (if available)."""
-        for sarif_path in self.context.security.sarif_files:
-            try:
-                data = json.loads((self.root / sarif_path).read_text(encoding="utf-8"))
-                if not isinstance(data, dict):
-                    continue
-                runs = data.get("runs", [])
-                if not isinstance(runs, list):
-                    continue
-                for run in runs:
-                    if not isinstance(run, dict):
-                        continue
-                    tool_name = run.get("tool", {}).get("driver", {}).get("name", "")
-                    if not isinstance(tool_name, str) or "vigil" not in tool_name.lower():
-                        continue
-                    results = run.get("results", [])
-                    if not isinstance(results, list):
-                        continue
-                    ev.security_findings_total += len(results)
-                    for r in results:
-                        if not isinstance(r, dict):
-                            continue
-                        level = r.get("level", "")
-                        if level == "error":
-                            ev.security_findings_critical += 1
-                        elif level == "warning":
-                            ev.security_findings_high += 1
-            except (json.JSONDecodeError, OSError) as exc:
-                logger.debug("sarif_parse_error", path=sarif_path, error=str(exc))
+        connector = VigilConnector(
+            str(self.root),
+            self.config.connectors.vigil,
+            sarif_files=self.context.security.sarif_files,
+        )
+        if not connector.enabled:
+            return False
+
+        result = connector.collect(ev)
+        self._connector_results.append(result)
+        return True
+
+    # -- Backwards-compatible inline collectors (no config needed) --
+
+    def _collect_architect_evidence_inline(self, ev: EvidenceBundle) -> None:
+        """Collect architect evidence without formal connector config.
+
+        Constructs a temporary ArchitectConnector with auto-detected paths
+        to avoid duplicating the parsing logic.
+        """
+        from licit.config.schema import ConnectorArchitectConfig
+
+        inline_config = ConnectorArchitectConfig(
+            enabled=True,
+            reports_dir=".architect/reports",
+            config_path=self.context.architect_config_path,
+        )
+        connector = ArchitectConnector(str(self.root), inline_config)
+        connector.collect(ev)
+
+    def _collect_vigil_evidence_inline(self, ev: EvidenceBundle) -> None:
+        """Collect SARIF evidence without formal connector config.
+
+        Constructs a temporary VigilConnector with auto-detected SARIF paths
+        to avoid duplicating the parsing logic.
+        """
+        from licit.config.schema import ConnectorVigilConfig
+
+        inline_config = ConnectorVigilConfig(enabled=True)
+        connector = VigilConnector(
+            str(self.root),
+            inline_config,
+            sarif_files=self.context.security.sarif_files,
+        )
+        connector.collect(ev)

@@ -1,5 +1,7 @@
 # Seguridad
 
+> Versión soportada: **0.7.x**. Para la política de seguridad formal y reporte de vulnerabilidades, ver [SECURITY.md](../SECURITY.md).
+
 ## Modelo de amenazas
 
 licit opera como una herramienta de auditoría local. Su superficie de ataque es limitada, pero existen riesgos a considerar:
@@ -9,19 +11,23 @@ licit opera como una herramienta de auditoría local. Su superficie de ataque es
 | Amenaza | Severidad | Mitigación |
 |---|---|---|
 | Manipulación de provenance store | Alta | Firmado HMAC-SHA256, Merkle tree de integridad |
+| Exposición de clave de firmado | Alta | `.licit/.signing-key` en `.gitignore`, permisos `600` |
 | Datos sensibles en FRIA | Media | `.gitignore` para `fria-data.json`, no subir a repos públicos |
+| Datos de contributors en provenance | Media | `.gitignore` para `provenance.jsonl` |
 | Inyección vía YAML malicioso | Baja | Uso exclusivo de `yaml.safe_load()` (no `yaml.load()`) |
+| SARIF/JSON malicioso | Baja | `json.loads` solo, `isinstance` en todos los campos |
 | Dependencias comprometidas | Media | Auditoría periódica, pinning de versiones mínimas |
 | Ejecución de código vía configs | Baja | No se ejecuta código de configs; solo se parsean datos |
-| Exposición de info de contributors | Baja | Provenance no se sube por defecto; recomendación en `.gitignore` |
+| Inyección de comandos git | Baja | `subprocess.run` con lista (sin `shell=True`), timeouts |
 
 ### Qué NO hace licit
 
 - **No ejecuta código arbitrario** de los archivos que analiza.
-- **No envía datos a servidores externos**. Todo se procesa localmente.
+- **No envía datos a servidores externos**. Todo se procesa localmente. Sin telemetría.
 - **No requiere permisos elevados**. Opera con los permisos del usuario.
 - **No modifica el código fuente** del proyecto analizado.
 - **No almacena credenciales**. Las claves de firmado las gestiona el usuario.
+- **Connectors son read-only**. Los conectores de architect y vigil solo leen archivos — no ejecutan herramientas ni modifican datos.
 
 ---
 
@@ -39,15 +45,18 @@ signature = HMAC-SHA256(key, canonical_json(record))
 ```yaml
 provenance:
   sign: true
+  # Opcional: path externo a la clave (por defecto usa .licit/.signing-key en el proyecto)
   sign_key_path: ~/.licit/signing-key
 ```
 
-**Generación de clave:**
+**Generación de clave manual:**
 ```bash
 # Generar una clave de 256 bits
 python3.12 -c "import secrets; print(secrets.token_hex(32))" > ~/.licit/signing-key
 chmod 600 ~/.licit/signing-key
 ```
+
+> **Nota**: Si no se especifica `sign_key_path`, licit auto-genera una clave en `.licit/.signing-key` dentro del proyecto. Si prefieres mantener la clave fuera del proyecto, usa `sign_key_path` con un path externo.
 
 ### Attestation (Merkle tree)
 
@@ -122,7 +131,7 @@ Todos los accesos a filesystem están protegidos con `try/except OSError`.
 .licit/fria-data.json
 
 # licit — clave de firmado (si se almacena en el proyecto)
-.licit/signing-key
+.licit/.signing-key
 *.key
 
 # licit — reportes generados (opcional, pueden hacer commit)
@@ -215,11 +224,12 @@ result = subprocess.run(
 Si encuentras una vulnerabilidad de seguridad en licit:
 
 1. **No abras un issue público.**
-2. Envía un email a los mantenedores con:
+2. Envía un email a **security@licit.dev** (o abre un advisory privado en GitHub) con:
    - Descripción de la vulnerabilidad
    - Pasos para reproducir
    - Impacto potencial
+   - Fix sugerido (si tienes)
 3. Recibirás una confirmación en 48 horas.
-4. Se publicará un fix y un advisory una vez resuelto.
+4. Se publicará un fix en un máximo de 7 días para issues críticos.
 
-Ver [SECURITY.md](../SECURITY.md) en la raíz del proyecto para información de contacto.
+Ver [SECURITY.md](../SECURITY.md) en la raíz del proyecto para la política completa.

@@ -15,7 +15,7 @@ pip install licit-ai-cli
 Verifica:
 ```bash
 licit --version
-# licit, version 0.5.0
+# licit, version 0.7.0
 ```
 
 ---
@@ -69,17 +69,24 @@ Muestra un resumen de:
 
 ## 4. Conectar fuentes de datos (opcional)
 
-Si usas Architect o Vigil:
+Si usas Architect o Vigil, los conectores enriquecen la evidencia de compliance:
 
 ```bash
-licit connect architect    # Lee reports y audit logs de Architect
-licit connect vigil        # Lee hallazgos SARIF de Vigil
+licit connect architect    # Lee reports, audit logs y config de Architect
+# → architect data found at: .architect/reports
+# → Connector 'architect' enabled.
+
+licit connect vigil        # Lee hallazgos SARIF de Vigil u otros scanners
+# → vigil data found
+# → Connector 'vigil' enabled.
 ```
 
 Para desconectar:
 ```bash
 licit connect architect --disable
 ```
+
+> **Nota**: `licit init` auto-detecta y habilita conectores si encuentra `.architect/` o `.vigil.yaml` en tu proyecto.
 
 ---
 

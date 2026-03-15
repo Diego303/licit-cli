@@ -30,7 +30,7 @@ python3.12 -m pip install -e ".[dev]"
 
 # Verificar la instalación
 licit --version
-# licit, version 0.5.0
+# licit, version 0.7.0
 ```
 
 ### Dependencias de desarrollo
@@ -73,7 +73,7 @@ python3.12 -m licit status                  # Probar status
 
 ```
 src/licit/
-├── __init__.py         # __version__ = "0.5.0"
+├── __init__.py         # __version__ = "0.7.0"
 ├── __main__.py         # Entry point: python -m licit
 ├── py.typed            # PEP 561 marker
 ├── cli.py              # Todos los comandos Click
@@ -115,8 +115,11 @@ src/licit/
 │       ├── requirements.py
 │       ├── evaluator.py
 │       └── templates/  # Jinja2 template
-├── connectors/         # Fase 7
-└── reports/            # Fase 6
+├── connectors/         # Fase 7 (COMPLETADA)
+│   ├── base.py        # Protocol Connector + ConnectorResult
+│   ├── architect.py   # ArchitectConnector
+│   └── vigil.py       # VigilConnector
+└── reports/            # Fase 6 (COMPLETADA)
 ```
 
 ---
@@ -175,20 +178,19 @@ logger.info("config_loaded", path=str(config_path), framework="eu-ai-act")
 logger.info(f"Config loaded from {config_path} for framework eu-ai-act")
 ```
 
-### 5. Lazy imports para módulos futuros
+### 5. TYPE_CHECKING para evitar circulares
 
-Todos los módulos de Fases 1-6 usan imports directos. Solo connectors (Fase 7) usaría lazy imports cuando se implemente:
+Los connectors importan `EvidenceBundle` bajo `TYPE_CHECKING` para evitar imports circulares (evidence.py importa connectors, que importarían evidence):
 
 ```python
-@main.command()
-def mi_comando() -> None:
-    """Command with direct imports (Phases 1-6)."""
-    from licit.reports.unified import UnifiedReportGenerator
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
-    generator = UnifiedReportGenerator(context, evidence, config)
+if TYPE_CHECKING:
+    from licit.core.evidence import EvidenceBundle
 ```
 
-> **Nota**: Los módulos de Fases 2-6 (provenance, changelog, eu_ai_act, owasp_agentic, reports) se importan directamente sin `type: ignore`.
+Todos los módulos de Fases 1-7 usan imports directos — no hay `type: ignore` en ningún módulo.
 
 ### 6. Ruff y mypy
 
@@ -206,14 +208,21 @@ def mi_comando() -> None:
 ```
 tests/
 ├── conftest.py                     # Fixtures compartidos
-├── test_cli.py                     # 13 tests
+├── test_cli.py                     # 24 tests
 ├── test_qa_edge_cases.py           # 61 tests (QA Phase 1)
+├── test_connectors/
+│   ├── test_architect.py           # 22 tests
+│   ├── test_vigil.py              # 22 tests
+│   ├── test_qa_edge_cases.py      # 20 tests (QA Phase 7)
+│   └── fixtures/                  # SARIF, JSON, YAML, JSONL
+├── test_integration/
+│   └── test_full_flow.py          # 10 tests (E2E)
 ├── test_config/
 │   ├── test_schema.py              # 7 tests
 │   └── test_loader.py              # 9 tests
 ├── test_core/
 │   ├── test_project.py             # 12 tests
-│   └── test_evidence.py            # 11 tests
+│   └── test_evidence.py            # 20 tests
 ├── test_provenance/
 │   ├── test_heuristics.py          # 23 tests
 │   ├── test_git_analyzer.py        # 15 tests
@@ -252,7 +261,7 @@ tests/
         └── test_qa_edge_cases.py      # 26 tests (QA Phase 6)
 ```
 
-**Total: 706 tests**
+**Total: 789 tests**
 
 ### Fixtures disponibles (conftest.py)
 
@@ -382,7 +391,7 @@ class LicitConfig(BaseModel):
    - Tests en tests/
 
 3. Verificar
-   python3.12 -m pytest tests/ -q      # 706+ tests passing
+   python3.12 -m pytest tests/ -q      # 789+ tests passing
    python3.12 -m ruff check src/licit/  # All checks passed
    python3.12 -m mypy src/licit/ --strict  # No issues found
 
@@ -403,6 +412,6 @@ class LicitConfig(BaseModel):
 | 4 | `base.py`, `registry.py`, `requirements.py`, `evaluator.py`, `fria.py`, `annex_iv.py`, `templates/` | `frameworks/`, `frameworks/eu_ai_act/` | **COMPLETADA** |
 | 5 | `requirements.py`, `evaluator.py`, `templates/` | `frameworks/owasp_agentic/` | **COMPLETADA** |
 | 6 | `unified.py`, `gap_analyzer.py`, `markdown.py`, `json_fmt.py`, `html.py`, `summary.py` | `reports/` | **COMPLETADA** |
-| 7 | `base.py`, `architect.py`, `vigil.py` | `connectors/` | Pendiente |
+| 7 | `base.py`, `architect.py`, `vigil.py` | `connectors/` | **COMPLETADA** |
 
 Cada fase tiene su sección detallada en el [plan de implementación](../Licit_V0_Plan_Implementacion.md).
