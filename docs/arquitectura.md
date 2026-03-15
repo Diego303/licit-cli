@@ -16,8 +16,8 @@ licit (CLI)
 │   ├── registry.py      Registro de frameworks
 │   ├── eu_ai_act/   EU AI Act (Fase 4 — COMPLETADA)
 │   └── owasp_agentic/  OWASP Agentic Top 10 (Fase 5 — COMPLETADA)
-├── connectors/      Integraciones opcionales (Fase 7)
-└── reports/         Generación de reportes (Fase 6)
+├── reports/         Reportes + gap analysis (Fase 6 — COMPLETADA)
+└── connectors/      Integraciones opcionales (Fase 7)
 ```
 
 ## Stack tecnológico
@@ -41,7 +41,7 @@ licit (CLI)
 
 3. **Protocol para interfaces**: Las abstracciones entre módulos usan `typing.Protocol`, no herencia con clases abstractas.
 
-4. **Lazy imports**: Los comandos de fases futuras usan imports lazy con `try/except ImportError` para que el CLI funcione sin los módulos aún no implementados.
+4. **Imports directos**: Todos los módulos de Fases 1-6 usan imports directos. Solo connectors (Fase 7) usa lazy imports.
 
 5. **Detección automática**: `ProjectDetector` infiere lenguajes, frameworks, CI/CD, herramientas de seguridad y configuraciones de agentes IA sin necesidad de configuración manual.
 
@@ -79,7 +79,7 @@ Proyecto del usuario
 └─────────────────┘                  └──────────────────┘  └───────────────────┘
 ```
 
-## Módulos implementados (Fases 1-5)
+## Módulos implementados (Fases 1-6)
 
 ### config/ — Configuración
 
@@ -128,9 +128,18 @@ Proyecto del usuario
 - **`owasp_agentic/evaluator.py`**: `OWASPAgenticEvaluator` — dispatch dinámico via `getattr(self, f"_eval_{id}")`. Scoring por control con thresholds variables (ASI08/ASI09 usan `compliant_at=2`, el resto `compliant_at=3`). Helpers: `_score_to_status()`, `_safe_float()`.
 - **`owasp_agentic/templates/`**: 1 template Jinja2 (report section, alineado con EU AI Act).
 
+### reports/ — Reportes y análisis de brechas
+
+- **`unified.py`**: `UnifiedReportGenerator` — orquesta evaluación multi-framework, produce `UnifiedReport` con estadísticas agregadas. Exception-safe: un framework que falla se skipea sin romper el reporte.
+- **`gap_analyzer.py`**: `GapAnalyzer` — identifica requisitos `NON_COMPLIANT` y `PARTIAL`, genera `GapItem` con tool suggestions y effort estimates. 17 categorías mapeadas (8 EU AI Act + 10 OWASP, `human-oversight` compartida).
+- **`markdown.py`**: Renderiza `UnifiedReport` como Markdown con tablas de resumen, iconos de estado (`[PASS]`/`[FAIL]`/`[PARTIAL]`), evidence y recommendations condicionales.
+- **`json_fmt.py`**: Renderiza como JSON estructurado con `ensure_ascii=False` para unicode.
+- **`html.py`**: Renderiza como HTML auto-contenido (sin CSS/JS externos). Badges de color por status. XSS-safe: escapa 5 caracteres (`&`, `<`, `>`, `"`, `'`).
+- **`summary.py`**: `print_summary()` imprime resumen compacto con barras de progreso ASCII al terminal.
+
 ### cli.py — Interfaz de línea de comandos
 
-10 comandos registrados con Click. Ocho funcionales: `init`, `status`, `connect`, `trace`, `changelog`, `fria`, `annex-iv`, `verify`. Los demás (`report`, `gaps`) tienen firmas completas y help text, pero dependen de módulos de fases futuras. `verify` evalúa tanto EU AI Act como OWASP Agentic Top 10.
+10 comandos registrados con Click, todos funcionales. `report` genera reportes en 3 formatos (Markdown, JSON, HTML). `gaps` muestra brechas con recomendaciones y herramientas sugeridas. `verify` evalúa EU AI Act + OWASP Agentic Top 10 y retorna exit codes para CI/CD.
 
 ## Fases de implementación
 
@@ -141,7 +150,7 @@ Proyecto del usuario
 | 3 | Changelog | **COMPLETADA** | watcher, differ semántico, classifier (MAJOR/MINOR/PATCH), renderer (MD/JSON) |
 | 4 | EU AI Act | **COMPLETADA** | Protocol, registry, evaluador (11 artículos), FRIA interactivo, Annex IV, templates Jinja2 |
 | 5 | OWASP | **COMPLETADA** | Evaluador OWASP Agentic Top 10 (10 controles), scoring por riesgo, template Jinja2 |
-| 6 | Reports | Pendiente | Reporte unificado, gap analyzer, Markdown/JSON/HTML |
+| 6 | Reports | **COMPLETADA** | Reporte unificado, gap analyzer, Markdown/JSON/HTML, terminal summary |
 | 7 | Connectors | Pendiente | Integración con architect y vigil |
 
 ## Grafo de dependencias
@@ -175,7 +184,11 @@ Phase 4: frameworks/eu_ai_act ← core/* + evidence (COMPLETADA)
 Phase 5: frameworks/owasp ← core/* + evidence + frameworks/base (COMPLETADA)
          owasp_agentic/requirements.py ← core/models
          owasp_agentic/evaluator.py ← requirements + core/* + evidence
-Phase 6: reports ← frameworks/* + evidence + core/models
+Phase 6: reports ← frameworks/* + evidence + core/models (COMPLETADA)
+         reports/unified ← frameworks/base + core/models + config
+         reports/gap_analyzer ← core/models + config
+         reports/markdown, json_fmt, html ← reports/unified
+         reports/summary ← reports/unified + click
 Phase 7: connectors ← config (independiente)
 ```
 
@@ -234,11 +247,17 @@ licit-cli/
 │       │       ├── requirements.py  # 10 riesgos como ControlRequirements
 │       │       ├── evaluator.py     # Evaluador por riesgo de seguridad
 │       │       └── templates/       # Jinja2 (report section)
-│       ├── connectors/         # (Fase 7)
-│       └── reports/            # (Fase 6)
+│       ├── reports/            # Fase 6 (COMPLETADA)
+│       │   ├── unified.py     # Generador de reporte multi-framework
+│       │   ├── gap_analyzer.py # Análisis de brechas con recomendaciones
+│       │   ├── markdown.py    # Renderer Markdown
+│       │   ├── json_fmt.py    # Renderer JSON
+│       │   ├── html.py        # Renderer HTML auto-contenido
+│       │   └── summary.py     # Resumen terminal con barras de progreso
+│       └── connectors/         # (Fase 7)
 └── tests/
     ├── conftest.py             # Fixtures compartidos
-    ├── test_cli.py             # Tests de CLI (13)
+    ├── test_cli.py             # Tests de CLI (23)
     ├── test_qa_edge_cases.py   # Tests QA Phase 1 (61)
     ├── test_config/
     │   ├── test_schema.py      # Tests de schema (7)
@@ -274,4 +293,12 @@ licit-cli/
             ├── test_evaluator.py       # Tests evaluador OWASP (40)
             ├── test_requirements.py    # Tests requirements OWASP (15)
             └── test_qa_edge_cases.py   # Tests QA Phase 5 (48)
+    └── test_reports/
+        ├── test_unified.py            # Tests unified report (12)
+        ├── test_gap_analyzer.py       # Tests gap analyzer (15)
+        ├── test_markdown.py           # Tests Markdown renderer (10)
+        ├── test_json_fmt.py           # Tests JSON renderer (10)
+        ├── test_html.py               # Tests HTML renderer (12)
+        ├── test_summary.py            # Tests terminal summary (11)
+        └── test_qa_edge_cases.py      # Tests QA Phase 6 (26)
 ```

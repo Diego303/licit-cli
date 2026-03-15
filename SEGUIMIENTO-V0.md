@@ -14,13 +14,13 @@
 | **Phase 3** | Changelog | **COMPLETADA + QA** | 93/93 | 5 source + 11 test |
 | **Phase 4** | EU AI Act | **COMPLETADA + QA** | 124/124 | 9 source + 3 templates + 5 test |
 | **Phase 5** | OWASP Agentic | **COMPLETADA + QA** | 103/103 | 3 source + 1 template + 3 test |
-| Phase 6 | Reports + Gap Analyzer | Pendiente | — | — |
+| **Phase 6** | Reports + Gap Analyzer | **COMPLETADA + QA** | 106/106 | 6 source + 7 test |
 | Phase 7 | Connectors + Integration | Pendiente | — | — |
 
 **Verificación de calidad:**
 - `ruff check src/licit/` — Sin errores
-- `mypy src/licit/ --strict` — Sin errores (0 issues en 41 archivos)
-- `pytest tests/ -q` — 600 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3 + 124 Phase 4 + 103 Phase 5)
+- `mypy src/licit/ --strict` — Sin errores (0 issues en 47 archivos)
+- `pytest tests/ -q` — 706 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3 + 124 Phase 4 + 103 Phase 5 + 106 Phase 6)
 
 ---
 
@@ -39,7 +39,7 @@ completo del CLI con los 10 comandos, y sistema de logging.
 
 Se configuró el proyecto completo con hatchling como build system:
 - Nombre del paquete: `licit-ai-cli`
-- Versión: `0.5.0`
+- Versión: `0.6.0`
 - Python: `>=3.12`
 - 6 dependencias runtime: click, pydantic, structlog, pyyaml, jinja2, cryptography
 - 4 dependencias dev: pytest, pytest-cov, ruff, mypy
@@ -1172,6 +1172,143 @@ con git repo real.
 
 ---
 
-## Phase 6 — Reports + Gap Analyzer (PENDIENTE)
+## Phase 6 — Reports + Gap Analyzer (COMPLETADA)
+
+### Objetivo
+Generar reportes de compliance unificados multi-framework en múltiples formatos
+(Markdown, JSON, HTML), analizar gaps con recomendaciones accionables, e
+integrar los comandos `report`, `gaps` y `verify` del CLI con los evaluadores
+de Phase 4 y 5.
+
+### Módulos Implementados
+
+#### P6.1 — UnifiedReportGenerator
+
+**Archivo:** `src/licit/reports/unified.py`
+
+Orquesta la evaluación de múltiples frameworks y produce un reporte unificado:
+- `UnifiedReport` dataclass con estadísticas agregadas cross-framework.
+- `FrameworkReport` dataclass por cada framework evaluado (name, version, description, summary, results).
+- `_evaluate_framework()` con exception handling — un framework que falla no impide la generación del reporte de los demás.
+- `_summarize()` computa `ComplianceSummary` (compliant, partial, non-compliant, n/a, not-evaluated, compliance_rate%).
+- `_compute_overall()` agrega estadísticas de todos los frameworks.
+- Flags `include_evidence` y `include_recommendations` propagados desde `ReportConfig`.
+- Timestamps UTC vía `datetime.now(tz=UTC)`.
+
+#### P6.2 — GapAnalyzer
+
+**Archivo:** `src/licit/reports/gap_analyzer.py`
+
+Identifica requisitos no-cumplidos y genera recomendaciones accionables:
+- Evalúa todos los frameworks, filtra resultados `NON_COMPLIANT` y `PARTIAL`.
+- `_TOOL_SUGGESTIONS` — mapa de categoría → lista de herramientas sugeridas, cubriendo las 8 categorías EU AI Act y 10 categorías OWASP Agentic (17 keys en total, `human-oversight` compartida).
+- `_EFFORT_MAP` — estimación de esfuerzo (`low`/`medium`/`high`) por categoría.
+- Ordenamiento: non-compliant antes que partial, prioridad secuencial asignada.
+- Fallback para categorías desconocidas: tools=[], effort="medium".
+- Exception handling por framework — un evaluador que falla se skipea con logging.
+
+#### P6.3 — Markdown Reporter
+
+**Archivo:** `src/licit/reports/markdown.py`
+
+Renderiza `UnifiedReport` como Markdown:
+- Header con proyecto y timestamp.
+- Tabla de resumen overall.
+- Sección por framework con tabla de contadores y detalle por requisito.
+- Iconos de estado: `[PASS]`, `[PARTIAL]`, `[FAIL]`, `[N/A]`, `[?]`.
+- Evidence y recommendations condicionales según flags de config.
+- Footer con link al repositorio.
+
+#### P6.4 — JSON Reporter
+
+**Archivo:** `src/licit/reports/json_fmt.py`
+
+Renderiza `UnifiedReport` como JSON:
+- Estructura: `project_name`, `generated_at`, `overall` (7 campos), `frameworks[]` con `summary` y `results[]`.
+- Evidence y recommendations condicionales.
+- `_json_default()` para serialización de `datetime`.
+- `ensure_ascii=False` para soporte unicode.
+
+#### P6.5 — HTML Reporter
+
+**Archivo:** `src/licit/reports/html.py`
+
+Renderiza `UnifiedReport` como HTML auto-contenido:
+- Single-file sin dependencias externas (no CSS/JS externos).
+- CSS inline con diseño responsive (max-width 960px).
+- Badges de color por status: verde (compliant), ámbar (partial), rojo (non-compliant), gris (n/a, not-evaluated).
+- `_esc()` escapa 5 caracteres HTML: `&`, `<`, `>`, `"`, `'` — previene XSS.
+- Evidence y recommendations condicionales.
+
+#### P6.6 — Terminal Summary
+
+**Archivo:** `src/licit/reports/summary.py`
+
+Imprime resumen compacto al terminal:
+- `print_summary()` muestra tabla por framework con barra de progreso ASCII.
+- `_progress_bar()` renderiza `[####............]` con porcentaje, clamped a [0, width].
+- Totales overall al final.
+
+#### P6.7 — CLI Integration
+
+**Archivo:** `src/licit/cli.py` (modificado)
+
+- `licit report` — genera reporte en 3 formatos con flag `--format` y output personalizable con `-o`.
+- `licit gaps` — muestra gaps con iconos `[X]`/`[!]`, descripción, recomendación, y herramientas sugeridas.
+- `licit verify` — gate CI/CD con exit codes 0 (compliant), 1 (non-compliant), 2 (partial).
+- Eliminados todos los `# type: ignore[import-not-found]` — imports reales.
+- `_get_frameworks()` helper compartido por los 3 comandos.
+
+### Tests Implementados
+
+| Archivo | Tests | Cobertura |
+|---------|-------|-----------|
+| `test_unified.py` | 12 | Generación vacía/single/multi framework, totales, compliance rate, flags, exceptions |
+| `test_gap_analyzer.py` | 15 | Gaps vacío/minimal/full, sorting, prioridad, effort, descriptions, OWASP, multi-framework, exceptions, categorías |
+| `test_markdown.py` | 10 | Proyecto, secciones, summary, iconos, evidence, recommendations, footer, tablas, vacío |
+| `test_json_fmt.py` | 10 | JSON válido, proyecto, overall, frameworks, fields, evidence, recommendations, counts, vacío, timestamp |
+| `test_html.py` | 12 | HTML válido, proyecto, secciones, style, badges, escape (5 chars + single quotes), evidence, recommendations, footer, self-contained, vacío |
+| `test_summary.py` | 11 | Progress bar (0%/50%/100%/clamped), prints (proyecto, frameworks, overall, bar, vacío) |
+| `test_qa_edge_cases.py` | 26 | Category mapping completeness (7), unicode (3), boundary inputs (7), cross-module integration (5), HTML escaping (4) |
+| `test_cli.py` (añadidos) | 10 | report markdown/json/html/custom output/summary, gaps output/recommendations, verify exit codes |
+| **Total Phase 6** | **106** | |
+
+### Resultados de QA
+
+#### Bugs encontrados y corregidos
+
+| # | Severidad | Descripción | Corrección |
+|---|-----------|-------------|------------|
+| 1 | **CRITICAL** | `gap_analyzer.py`: 8 de 10 categorías OWASP no coincidían con las definidas en `owasp_agentic/requirements.py`. Usaba nombres inventados (`excessive-agency`, `prompt-injection`, `sandboxing`, etc.) en vez de los reales (`access-control`, `input-security`, `isolation`, etc.). Resultado: OWASP gaps sin tool suggestions ni effort correcto. | Reescrito `_TOOL_SUGGESTIONS` y `_EFFORT_MAP` con las categorías exactas de `requirements.py`. Añadidos 7 tests que validan completeness cross-referencing ambos módulos. |
+| 2 | **HIGH** | `unified.py`/`gap_analyzer.py`: Sin exception handling en llamadas a `fw.evaluate()`. Un evaluador que lanza excepción crasheaba todo el reporte o gap analysis. | `try/except Exception` con `logger.exception()`. Unified retorna `None` (framework skipped). GapAnalyzer hace `continue`. Tests con `BrokenEvaluator`. |
+| 3 | **HIGH** | Sin tests CLI de integración para `report`, `gaps`, `verify`. Los comandos estaban en producción sin ningún test end-to-end. | 10 tests CLI: 3 formatos de report, custom output, summary print, gaps con recomendaciones, verify exit codes. |
+| 4 | **MEDIUM** | `html.py _esc()`: No escapaba single quotes (`'`), riesgo XSS si atributos HTML usan single quotes. | Añadido `.replace("'", "&#39;")`. Test de verificación. |
+| 5 | **MEDIUM** | `_TOOL_SUGGESTIONS["data-governance"]` estaba vacío — gaps de data governance no sugerían herramientas. | Añadido `"licit annex-iv (document data practices)"`. |
+| 6 | **LOW** | `markdown.py`, `json_fmt.py`, `html.py`: importaban `structlog` + creaban logger sin usarlo. | Eliminados imports y `logger` no usados. |
+| 7 | **LOW** | `json_fmt.py`: `_framework_to_dict(fw: Any, ...)` usaba `Any` en vez del tipo correcto. | Cambiado a `fw: FrameworkReport` con `TYPE_CHECKING` import. |
+
+#### Riesgos residuales
+
+| Riesgo | Severidad | Nota |
+|--------|-----------|------|
+| `human-oversight` es categoría compartida entre EU AI Act y OWASP (misma key, mismos tools sugeridos) | Low | Los tools son razonables para ambos contextos (dry-run, branch protection) |
+| Si se añade un nuevo framework con categorías nuevas sin actualizar `gap_analyzer.py`, fallback es tools=[] y effort="medium" | Low | Los tests `TestCategoryMappingCompleteness` detectan esto automáticamente al importar requirements |
+
+### Checklist de Verificación
+
+- [x] Todos los archivos creados y funcionales
+- [x] `pytest tests/ -q` — 706 tests, todos pasan
+- [x] `ruff check src/licit/` — Sin errores
+- [x] `mypy src/licit/ --strict` — Sin errores (47 archivos)
+- [x] `python -m licit --help` — 10 comandos visibles
+- [x] `licit report` genera Markdown, JSON y HTML correctos
+- [x] `licit gaps` muestra gaps con tools y effort correctos (EU AI Act + OWASP)
+- [x] `licit verify` retorna exit codes 0/1/2 correctos
+- [x] E2E manual: init → trace → report (3 formatos) → gaps → verify en proyecto fake
+- [x] Exception handling: framework que crashea no rompe el reporte
+- [x] HTML XSS-safe: 5 caracteres escapados
+- [x] Categorías OWASP verificadas contra `requirements.py` con tests automáticos
+
+---
 
 ## Phase 7 — Connectors + Integration (PENDIENTE)

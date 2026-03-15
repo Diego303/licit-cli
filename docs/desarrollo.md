@@ -177,19 +177,18 @@ logger.info(f"Config loaded from {config_path} for framework eu-ai-act")
 
 ### 5. Lazy imports para módulos futuros
 
-Cuando un comando necesita un módulo que aún no existe, usa lazy imports con `type: ignore`:
+Todos los módulos de Fases 1-6 usan imports directos. Solo connectors (Fase 7) usaría lazy imports cuando se implemente:
 
 ```python
 @main.command()
 def mi_comando() -> None:
-    """Command depending on future phase."""
-    from licit.reports.unified import (  # type: ignore[import-not-found]
-        UnifiedReportGenerator,
-    )
-    generator: Any = UnifiedReportGenerator(...)
+    """Command with direct imports (Phases 1-6)."""
+    from licit.reports.unified import UnifiedReportGenerator
+
+    generator = UnifiedReportGenerator(context, evidence, config)
 ```
 
-> **Nota**: Los módulos de Fases 2-5 (provenance, changelog, eu_ai_act, owasp_agentic) ya están implementados y se importan directamente sin `type: ignore`. Solo `reports/` (Phase 6) usa stubs lazy.
+> **Nota**: Los módulos de Fases 2-6 (provenance, changelog, eu_ai_act, owasp_agentic, reports) se importan directamente sin `type: ignore`.
 
 ### 6. Ruff y mypy
 
@@ -243,9 +242,17 @@ tests/
         ├── test_evaluator.py       # 40 tests
         ├── test_requirements.py    # 15 tests
         └── test_qa_edge_cases.py   # 48 tests (QA Phase 5)
+    └── test_reports/
+        ├── test_unified.py            # 12 tests
+        ├── test_gap_analyzer.py       # 15 tests
+        ├── test_markdown.py           # 10 tests
+        ├── test_json_fmt.py           # 10 tests
+        ├── test_html.py               # 12 tests
+        ├── test_summary.py            # 11 tests
+        └── test_qa_edge_cases.py      # 26 tests (QA Phase 6)
 ```
 
-**Total: 600 tests**
+**Total: 706 tests**
 
 ### Fixtures disponibles (conftest.py)
 
@@ -375,7 +382,7 @@ class LicitConfig(BaseModel):
    - Tests en tests/
 
 3. Verificar
-   python3.12 -m pytest tests/ -q      # 600+ tests passing
+   python3.12 -m pytest tests/ -q      # 706+ tests passing
    python3.12 -m ruff check src/licit/  # All checks passed
    python3.12 -m mypy src/licit/ --strict  # No issues found
 
@@ -395,7 +402,7 @@ class LicitConfig(BaseModel):
 | 3 | `watcher.py`, `differ.py`, `classifier.py`, `renderer.py` | `changelog/` | **COMPLETADA** |
 | 4 | `base.py`, `registry.py`, `requirements.py`, `evaluator.py`, `fria.py`, `annex_iv.py`, `templates/` | `frameworks/`, `frameworks/eu_ai_act/` | **COMPLETADA** |
 | 5 | `requirements.py`, `evaluator.py`, `templates/` | `frameworks/owasp_agentic/` | **COMPLETADA** |
-| 6 | `unified.py`, `gap_analyzer.py`, `markdown.py`, `json_fmt.py`, `html.py` | `reports/` | Pendiente |
+| 6 | `unified.py`, `gap_analyzer.py`, `markdown.py`, `json_fmt.py`, `html.py`, `summary.py` | `reports/` | **COMPLETADA** |
 | 7 | `base.py`, `architect.py`, `vigil.py` | `connectors/` | Pendiente |
 
 Cada fase tiene su sección detallada en el [plan de implementación](../Licit_V0_Plan_Implementacion.md).

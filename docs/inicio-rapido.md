@@ -181,17 +181,26 @@ Exit code 0 = compliant, 1 = non-compliant, 2 = partial. Ideal para CI/CD gates.
 
 ---
 
-## ¿Qué sigue?
-
-Una vez completadas las fases futuras de licit, podrás:
+## 10. Generar reportes de compliance
 
 ```bash
-# Ver reporte unificado de compliance
-licit report
-
-# Identificar brechas con recomendaciones
-licit gaps
+licit report                              # Reporte Markdown (default)
+licit report --format json -o report.json # JSON
+licit report --format html -o report.html # HTML auto-contenido
 ```
+
+El reporte incluye un resumen overall, tabla por framework, y detalle por requisito con evidencia y recomendaciones.
+
+---
+
+## 11. Identificar brechas
+
+```bash
+licit gaps                           # Todas las brechas
+licit gaps --framework eu-ai-act     # Solo EU AI Act
+```
+
+Cada brecha incluye descripción, recomendación accionable, herramientas sugeridas, y nivel de esfuerzo.
 
 ---
 

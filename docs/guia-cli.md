@@ -417,7 +417,7 @@ $ licit annex-iv --organization "ACME Corp" --product "WebApp"
 
 Genera un reporte de compliance unificado.
 
-> **Estado**: Registrado en CLI. Funcional a partir de Fase 6.
+> **Estado**: **Funcional** (Fase 6). Evalúa EU AI Act + OWASP Agentic Top 10. Soporta Markdown, JSON y HTML.
 
 ```bash
 licit report [--framework {eu-ai-act|owasp|all}] [--format {markdown|json|html}] [--output PATH]
@@ -431,13 +431,44 @@ licit report [--framework {eu-ai-act|owasp|all}] [--format {markdown|json|html}]
 | `--format` | `markdown` | Formato de salida |
 | `-o`, `--output` | `.licit/reports/compliance-report.{ext}` | Ruta del archivo de salida |
 
+**Ejemplo:**
+```bash
+$ licit report --framework eu-ai-act
+
+  Compliance Summary
+  ─────────────────────────────────────────────
+  Project: my-app
+  Generated: 2026-03-15 12:00 UTC
+
+  eu-ai-act (2024/1689)
+    [##..................] 9.1%
+    1 compliant | 4 partial | 6 non-compliant
+
+  ─────────────────────────────────────────────
+  Overall: [##..................] 9.1%
+  1/11 controls compliant
+
+  Report saved to: .licit/reports/compliance-report.md
+```
+
+**Formatos de salida:**
+
+| Formato | Descripción |
+|---|---|
+| `markdown` | Tablas de resumen + detalle por requisito con iconos `[PASS]`/`[FAIL]`/`[PARTIAL]` |
+| `json` | JSON estructurado con `overall`, `frameworks[]`, `results[]` |
+| `html` | HTML auto-contenido (sin dependencias externas), badges de color, responsive |
+
+**Archivos generados:**
+- `.licit/reports/compliance-report.md` (o `.json`/`.html` según `--format`)
+
 ---
 
 ### `licit gaps`
 
 Identifica brechas de compliance con recomendaciones accionables.
 
-> **Estado**: Registrado en CLI. Funcional a partir de Fase 6.
+> **Estado**: **Funcional** (Fase 6). Muestra gaps con herramientas sugeridas y nivel de esfuerzo.
 
 ```bash
 licit gaps [--framework {eu-ai-act|owasp|all}]
@@ -449,22 +480,26 @@ licit gaps [--framework {eu-ai-act|owasp|all}]
 |---|---|---|
 | `--framework` | `all` | Marco a analizar |
 
-**Ejemplo futuro:**
+**Ejemplo:**
 ```bash
 $ licit gaps --framework eu-ai-act
 
-EU AI Act Compliance Gaps:
+  10 compliance gap(s) found:
 
-[HIGH] ART-9-1: Risk Management System
-  Gap: No FRIA document found
-  Action: Run 'licit fria' to complete the assessment
-  Effort: medium
+  1. [X] [ART-27-1] Fundamental Rights Impact Assessment (FRIA)
+     Missing: Before putting an AI system into use, deployers shall
+     carry out an assessment of the impact on fundamental rights.
+     -> Run: licit fria -- to complete the FRIA
+     Tools: licit fria
 
-[MEDIUM] ART-13-1: Transparency
-  Gap: No provenance tracking configured
-  Action: Run 'licit trace' to analyze code provenance
-  Effort: low
+  2. [!] [ART-12-1] Record Keeping — Automatic Logging
+     Incomplete: AI systems shall be designed with capabilities enabling
+     automatic recording of events (logs) over the lifetime.
+     -> Enable structured audit trail (architect reports or manual logging)
+     Tools: licit trace, architect (audit log)
 ```
+
+Los gaps se ordenan por severidad (`[X]` non-compliant antes que `[!]` partial) y cada uno incluye descripción, recomendación, y herramientas sugeridas.
 
 ---
 
@@ -506,6 +541,6 @@ licit verify [--framework {eu-ai-act|owasp|all}]
 | `changelog` | 3 | **Funcional** | Changelog de configs de agentes |
 | `fria` | 4 | **Funcional** | FRIA (EU AI Act Art. 27) |
 | `annex-iv` | 4 | **Funcional** | Documentación técnica Anexo IV |
-| `report` | 6 | Skeleton | Reporte unificado de compliance |
-| `gaps` | 6 | Skeleton | Brechas de compliance |
-| `verify` | 4-5 | **Funcional (EU AI Act + OWASP)** | Gate de CI/CD |
+| `report` | 6 | **Funcional** | Reporte unificado (MD/JSON/HTML) |
+| `gaps` | 6 | **Funcional** | Brechas con recomendaciones |
+| `verify` | 4-6 | **Funcional (EU AI Act + OWASP)** | Gate de CI/CD |

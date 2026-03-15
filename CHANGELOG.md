@@ -9,6 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [0.6.0] — 2026-03-15
+
+### Added
+
+#### Phase 6 — Reports + Gap Analyzer
+
+- **Unified report generator** (`src/licit/reports/unified.py`)
+  - `UnifiedReportGenerator` orchestrates multi-framework evaluation and produces a cross-framework report with aggregated statistics.
+  - `UnifiedReport` and `FrameworkReport` dataclasses with `ComplianceSummary` per framework.
+  - Exception-safe framework evaluation: a failing evaluator is skipped with `logger.exception()`, not propagated.
+  - Respects `ReportConfig` flags: `include_evidence`, `include_recommendations`.
+  - UTC timestamps via `datetime.now(tz=UTC)`.
+- **Gap analyzer** (`src/licit/reports/gap_analyzer.py`)
+  - `GapAnalyzer` identifies `NON_COMPLIANT` and `PARTIAL` results, converts them to `GapItem` instances with actionable recommendations.
+  - `_TOOL_SUGGESTIONS` maps all 17 requirement categories (8 EU AI Act + 10 OWASP, `human-oversight` shared) to specific tool recommendations.
+  - `_EFFORT_MAP` assigns effort estimates (`low`/`medium`/`high`) per category.
+  - Gaps sorted by severity (non-compliant first), then assigned sequential priority.
+  - Exception-safe: failing framework evaluators are skipped with logging.
+- **Markdown reporter** (`src/licit/reports/markdown.py`)
+  - Renders `UnifiedReport` as Markdown with overall summary table, per-framework sections, status icons (`[PASS]`/`[FAIL]`/`[PARTIAL]`), and conditional evidence/recommendations.
+- **JSON reporter** (`src/licit/reports/json_fmt.py`)
+  - Renders `UnifiedReport` as structured JSON with `ensure_ascii=False` for unicode support.
+  - Conditional evidence/recommendations per `ReportConfig` flags.
+- **HTML reporter** (`src/licit/reports/html.py`)
+  - Renders `UnifiedReport` as a self-contained HTML file — no external CSS/JS dependencies.
+  - Responsive CSS (max-width 960px), color-coded status badges, styled recommendation blocks.
+  - XSS-safe `_esc()` function escaping 5 characters: `&`, `<`, `>`, `"`, `'`.
+- **Terminal summary** (`src/licit/reports/summary.py`)
+  - `print_summary()` prints a compact compliance overview with ASCII progress bars.
+  - `_progress_bar()` renders `[####....]` with clamping to [0, width].
+- **CLI integration** — `licit report`, `licit gaps`, `licit verify` now fully functional:
+  - `licit report` supports `--format markdown|json|html` and `-o` custom output path.
+  - `licit gaps` shows gaps with `[X]`/`[!]` icons, descriptions, recommendations, and tool suggestions.
+  - `licit verify` returns exit code 0 (compliant), 1 (non-compliant), or 2 (partial).
+  - All `# type: ignore[import-not-found]` stubs removed — real imports from `licit.reports.*`.
+  - `_get_frameworks()` helper shared by all three commands.
+
+#### QA Hardening — Phase 6
+
+- **Bug fixes** — 7 issues found and fixed during QA review:
+  - **(Critical)** `gap_analyzer.py`: 8 of 10 OWASP category keys did not match actual `owasp_agentic/requirements.py` categories. Used invented names (`excessive-agency`, `prompt-injection`, `sandboxing`, etc.) instead of actual ones (`access-control`, `input-security`, `isolation`, etc.). Result: all OWASP gaps had empty tool suggestions and default effort. Fixed by rewriting both `_TOOL_SUGGESTIONS` and `_EFFORT_MAP` with exact category keys from `requirements.py`.
+  - **(High)** `unified.py` and `gap_analyzer.py`: No exception handling around `fw.evaluate()` calls — a crashing evaluator would take down the entire report or gap analysis. Fixed with `try/except Exception` + `logger.exception()`.
+  - **(High)** No CLI integration tests for `report`, `gaps`, `verify` commands. Added 10 tests covering all formats, output paths, and exit codes.
+  - **(Medium)** `html.py _esc()`: Did not escape single quotes (`'`), creating potential XSS risk if future attributes use single-quote delimiters. Added `.replace("'", "&#39;")`.
+  - **(Medium)** `_TOOL_SUGGESTIONS["data-governance"]` was empty — data governance gaps showed no tool suggestions. Added `"licit annex-iv (document data practices)"`.
+  - **(Low)** `markdown.py`, `json_fmt.py`, `html.py`: Imported `structlog` and created `logger` without using them. Removed dead imports.
+  - **(Low)** `json_fmt.py`: `_framework_to_dict` parameter typed as `Any` instead of `FrameworkReport`. Fixed with `TYPE_CHECKING` import.
+- **106 new Phase 6 tests** across 8 test files:
+  - `test_unified.py` (12) — Empty/single/multi framework, totals, compliance rate, flags, exception handling (BrokenEvaluator).
+  - `test_gap_analyzer.py` (15) — Empty/minimal/full gaps, sorting, priority, effort, descriptions, OWASP, multi-framework, exceptions, category completeness.
+  - `test_markdown.py` (10) — Project name, sections, summary, icons, evidence, recommendations, footer, tables, empty.
+  - `test_json_fmt.py` (10) — Valid JSON, project, overall, frameworks, fields, evidence, recommendations, counts, empty, timestamp.
+  - `test_html.py` (12) — Valid HTML, project, sections, style, badges, HTML escaping (5 chars + single quotes), evidence, recommendations, footer, self-contained, empty.
+  - `test_summary.py` (11) — Progress bar (0%/50%/100%/clamped/negative), prints (project, frameworks, overall, bar, empty).
+  - `test_qa_edge_cases.py` (26) — Category mapping completeness (cross-references requirements.py), unicode handling (3 formats), boundary inputs (empty evidence, None category, unknown category, all-compliant), cross-module integration roundtrips (5), HTML escaping edge cases (4).
+  - `test_cli.py` (10 added) — Report markdown/json/html, custom output, summary print, gaps with recommendations, verify exit codes.
+
+### Changed
+
+- Test suite expanded from 600 to 706 tests (600 previous + 106 Phase 6).
+- `licit report`, `licit gaps`, `licit verify` now fully functional (were stubs with `# type: ignore`).
+- CLI imports for reports modules changed from lazy `type: ignore` stubs to real imports.
+- `pyproject.toml` version bumped to `0.6.0`.
+
 ## [0.5.0] — 2026-03-14
 
 ### Added
