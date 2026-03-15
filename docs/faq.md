@@ -83,21 +83,22 @@ $ licit --verbose status
 
 ## Comandos
 
-### `licit fria` / `licit report` no funcionan
+### ¿Qué comandos están funcionales?
 
-Algunos comandos están **registrados** en el CLI pero su implementación completa es parte de fases futuras:
+Todos los 10 comandos están funcionales desde v0.6.0:
 
 | Comando | Fase | Estado actual |
 |---|---|---|
+| `init` | 1 | **Funcional** (v0.1.0) |
+| `status` | 1 | **Funcional** (v0.1.0) |
+| `connect` | 1 | **Funcional** (v0.1.0) |
 | `trace` | 2 | **Funcional** (v0.2.0) |
 | `changelog` | 3 | **Funcional** (v0.3.0) |
 | `fria` | 4 | **Funcional** (v0.4.0) |
 | `annex-iv` | 4 | **Funcional** (v0.4.0) |
-| `verify` | 4-5 | **Funcional** (v0.5.0 — EU AI Act + OWASP) |
-| `report` | 6 | Skeleton |
-| `gaps` | 6 | Skeleton |
-
-Los comandos funcionales en v0.5.0 son: `init`, `status`, `connect`, `trace`, `changelog`, `fria`, `annex-iv`, `verify`.
+| `verify` | 4-6 | **Funcional** (v0.5.0 — EU AI Act + OWASP) |
+| `report` | 6 | **Funcional** (v0.6.0 — Markdown, JSON, HTML) |
+| `gaps` | 6 | **Funcional** (v0.6.0 — con tool suggestions) |
 
 ### `licit init` no detecta mi lenguaje/framework
 
@@ -242,16 +243,14 @@ Los archivos que **no** debes commitear:
 
 ---
 
-## Problemas conocidos (v0.5.0)
+## Problemas conocidos (v0.6.0)
 
 | Problema | Estado | Workaround |
 |---|---|---|
-| Comandos `report` y `gaps` muestran error | Esperado | Dependen de Phase 6 (reports). Usar `verify` para compliance check |
 | No detecta frameworks Go/Rust/Java | Limitacion | Detecta el lenguaje pero no frameworks especificos |
 | Heuristicas de provenance pueden dar falsos positivos | Limitacion | Ajustar `confidence_threshold` en config |
 | Session reader solo soporta Claude Code | Limitacion | Mas readers en fases futuras |
 | Pipe `\|` en nombre de organizacion rompe tabla Markdown en Annex IV | Limitacion | Evitar pipe en nombres de organizacion |
-| Solo formato Markdown para reportes de compliance | Esperado | JSON/HTML en Fase 6 |
 | Markdown differ solo soporta headings ATX (`#`) | Limitacion | Los headings setext (`===`/`---`) no se detectan |
 | FRIA `run_interactive()` requiere terminal | Limitacion | No se puede ejecutar en modo batch; usar `--update` con datos pre-generados |
 

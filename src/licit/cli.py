@@ -330,15 +330,15 @@ def report(ctx: click.Context, framework: str, fmt: str, output: str | None) -> 
     context = detector.detect(root)
     evidence = EvidenceCollector(root, context).collect()
 
-    from licit.reports.unified import UnifiedReportGenerator  # type: ignore[import-not-found]
+    from licit.reports.unified import UnifiedReportGenerator
 
-    generator: Any = UnifiedReportGenerator(context, evidence, config)
+    generator = UnifiedReportGenerator(context, evidence, config)
     frameworks_to_eval = _get_frameworks(framework, config)
-    report_data: Any = generator.generate(frameworks_to_eval)
+    report_data = generator.generate(frameworks_to_eval)
 
-    from licit.reports import html as html_reporter  # type: ignore[attr-defined]
-    from licit.reports import json_fmt  # type: ignore[attr-defined]
-    from licit.reports import markdown as md_reporter  # type: ignore[attr-defined]
+    from licit.reports import html as html_reporter
+    from licit.reports import json_fmt
+    from licit.reports import markdown as md_reporter
 
     if fmt == "json":
         content: str = json_fmt.render(report_data)
@@ -352,7 +352,7 @@ def report(ctx: click.Context, framework: str, fmt: str, output: str | None) -> 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     Path(output_path).write_text(content, encoding="utf-8")
 
-    from licit.reports.summary import print_summary  # type: ignore[import-not-found]
+    from licit.reports.summary import print_summary
 
     print_summary(report_data)
 
@@ -382,11 +382,11 @@ def gaps(ctx: click.Context, framework: str) -> None:
     context = detector.detect(root)
     evidence = EvidenceCollector(root, context).collect()
 
-    from licit.reports.gap_analyzer import GapAnalyzer  # type: ignore[import-not-found]
+    from licit.reports.gap_analyzer import GapAnalyzer
 
-    analyzer: Any = GapAnalyzer(context, evidence, config)
+    analyzer = GapAnalyzer(context, evidence, config)
     frameworks_to_eval = _get_frameworks(framework, config)
-    gap_items: list[Any] = analyzer.analyze(frameworks_to_eval)
+    gap_items = analyzer.analyze(frameworks_to_eval)
 
     if not gap_items:
         click.echo("\n  No compliance gaps found! All requirements met.")

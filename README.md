@@ -108,6 +108,31 @@ licit report --format html -o r.html # HTML output
 licit gaps                           # What's missing?
 ```
 
+### Gap Analysis
+
+```bash
+licit gaps                           # All frameworks
+licit gaps --framework eu-ai-act     # EU AI Act only
+```
+
+Output example:
+
+```
+  10 compliance gap(s) found:
+
+  1. [X] [ART-27-1] Fundamental Rights Impact Assessment (FRIA)
+     Missing: Before putting an AI system into use, deployers shall
+     carry out an assessment of the impact on fundamental rights.
+     -> Run: licit fria -- to complete the FRIA
+     Tools: licit fria
+
+  2. [!] [ASI02] Prompt Injection
+     Incomplete: AI agents must be protected against adversarial
+     manipulation through crafted inputs.
+     -> Add AI-specific security scanning
+     Tools: vigil (prompt injection scanner)
+```
+
 ### CI/CD Integration
 
 ```yaml
@@ -331,8 +356,14 @@ src/licit/
 │       ├── requirements.py            # 10 risks as ControlRequirements
 │       ├── evaluator.py               # Risk-by-risk security evaluation
 │       └── templates/                 # Jinja2 report template
+├── reports/                            # ✅ Phase 6 — complete
+│   ├── unified.py                    # Multi-framework report generator
+│   ├── gap_analyzer.py               # Gap detection with tool recommendations
+│   ├── markdown.py                   # Markdown report renderer
+│   ├── json_fmt.py                   # JSON report renderer
+│   ├── html.py                       # Self-contained HTML renderer (no deps)
+│   └── summary.py                    # Terminal summary with progress bars
 ├── connectors/                         # architect + vigil (Phase 7)
-├── reports/                            # Unified reports, gap analysis (Phase 6)
 └── logging/                            # structlog configuration
 ```
 
@@ -341,12 +372,15 @@ src/licit/
 Full documentation (in Spanish) is available in the [`docs/`](docs/) directory:
 
 - [Quick start](docs/inicio-rapido.md) — Get licit running in 5 minutes
-- [Architecture](docs/arquitectura.md) — System design, modules, and phases
 - [CLI guide](docs/guia-cli.md) — Complete command reference
+- [Report interpretation](docs/interpretacion-reportes.md) — How to read and act on compliance reports
+- [FRIA guide](docs/guia-fria.md) — Question-by-question guidance for the FRIA (Art. 27)
+- [Auditor guide](docs/guia-auditor.md) — Evidence verification and audit preparation
+- [CI/CD integration](docs/ci-cd.md) — GitHub Actions, GitLab CI, Jenkins setup
 - [Configuration](docs/configuracion.md) — All `.licit.yaml` fields
-- [Data models](docs/modelos.md) — Enums, dataclasses, and Pydantic schemas
-- [Security](docs/seguridad.md) — Threat model, signing, data protection
 - [Compliance](docs/compliance.md) — EU AI Act and OWASP framework details
+- [Architecture](docs/arquitectura.md) — System design, modules, and phases
+- [Security](docs/seguridad.md) — Threat model, signing, data protection
 - [Best practices](docs/buenas-practicas.md) — Integration recommendations
 - [Development](docs/desarrollo.md) — Contributing guide
 - [FAQ](docs/faq.md) — Troubleshooting and common questions
@@ -357,7 +391,7 @@ Full documentation (in Spanish) is available in the [`docs/`](docs/) directory:
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests (600 tests)
+# Run tests (706 tests)
 pytest tests/ -q
 
 # Lint
@@ -379,7 +413,7 @@ mypy src/licit/ --strict
 
 | Version | Key Features |
 |---------|-------------|
-| **V0** (current) | CLI, provenance tracking (git + Claude Code sessions), EU AI Act (11 articles), OWASP Agentic Top 10, FRIA, Annex IV, CI/CD gate |
+| **V0** (current) | CLI, provenance tracking (git + Claude Code sessions), EU AI Act (11 articles), OWASP Agentic Top 10, FRIA, Annex IV, unified reports (MD/JSON/HTML), gap analysis, CI/CD gate |
 | **V0.x** | Cursor/Codex session readers, PDF reports, GitHub Action |
 | **V1** | NIST AI RMF, ISO 42001, plugin system, Sigstore, MCP Server |
 | **V2** | Web dashboard, multi-project, trend analysis, AI remediation |
