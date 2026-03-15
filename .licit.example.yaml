@@ -1,0 +1,61 @@
+# .licit.yaml — full configuration example
+# Copy to .licit.yaml and adjust for your project.
+
+provenance:
+  enabled: true
+  methods:
+    - git-infer
+    # - session-log    # Enable when using Claude Code session reader
+  confidence_threshold: 0.6
+  sign: false
+  # sign_key_path: .licit/.signing-key  # Path to HMAC signing key
+  store_path: .licit/provenance.jsonl
+
+changelog:
+  enabled: true
+  watch_files:
+    - CLAUDE.md
+    - .cursorrules
+    - .cursor/rules
+    - AGENTS.md
+    - .github/copilot-instructions.md
+    - .github/agents/*.md
+    - .architect/config.yaml
+    - architect.yaml
+  output_path: .licit/changelog.md
+
+frameworks:
+  eu_ai_act: true
+  owasp_agentic: true
+  nist_ai_rmf: false       # Coming in V1
+  iso_42001: false          # Coming in V1
+
+connectors:
+  architect:
+    enabled: false          # Auto-enabled if .architect/ detected
+    reports_dir: .architect/reports
+    # audit_log: .architect/audit.jsonl  # Path to audit JSONL log
+    config_path: .architect/config.yaml
+  vigil:
+    enabled: false          # Auto-enabled if .vigil.yaml detected
+    # sarif_path: results.sarif          # Single file or directory of .sarif files
+    # sbom_path: sbom.json               # CycloneDX SBOM for supply chain visibility
+
+fria:
+  output_path: .licit/fria-report.md
+  data_path: .licit/fria-data.json
+  organization: ""
+  system_name: ""
+  system_description: ""
+
+annex_iv:
+  output_path: .licit/annex-iv.md
+  organization: ""
+  product_name: ""
+  product_version: ""
+
+reports:
+  output_dir: .licit/reports
+  default_format: markdown    # markdown, json, html
+  include_evidence: true
+  include_recommendations: true

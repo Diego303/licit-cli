@@ -1,0 +1,23 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "version": 1,
+  "components": [
+    {
+      "type": "library",
+      "name": "click",
+      "version": "8.1.7"
+    },
+    {
+      "type": "library",
+      "name": "pydantic",
+      "version": "2.6.0"
+    },
+    {
+      "type": "library",
+      "name": "structlog",
+      "version": "24.1.0"
+    }
+  ]
+}

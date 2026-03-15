@@ -26,7 +26,7 @@ class TestCLIHelp:
         runner = CliRunner()
         result = runner.invoke(main, ["--version"])
         assert result.exit_code == 0
-        assert "0.6.0" in result.output
+        assert "0.7.0" in result.output
 
     def test_init_help(self) -> None:
         runner = CliRunner()

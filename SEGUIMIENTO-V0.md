@@ -15,12 +15,12 @@
 | **Phase 4** | EU AI Act | **COMPLETADA + QA** | 124/124 | 9 source + 3 templates + 5 test |
 | **Phase 5** | OWASP Agentic | **COMPLETADA + QA** | 103/103 | 3 source + 1 template + 3 test |
 | **Phase 6** | Reports + Gap Analyzer | **COMPLETADA + QA** | 106/106 | 6 source + 7 test |
-| Phase 7 | Connectors + Integration | Pendiente | — | — |
+| **Phase 7** | Connectors + Integration | **COMPLETADA + QA** | 83/83 | 4 source + 6 fixtures + 4 test |
 
 **Verificación de calidad:**
 - `ruff check src/licit/` — Sin errores
-- `mypy src/licit/ --strict` — Sin errores (0 issues en 47 archivos)
-- `pytest tests/ -q` — 706 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3 + 124 Phase 4 + 103 Phase 5 + 106 Phase 6)
+- `mypy src/licit/ --strict` — Sin errores (0 issues en 50 archivos)
+- `pytest tests/ -q` — 789 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3 + 124 Phase 4 + 103 Phase 5 + 106 Phase 6 + 83 Phase 7)
 
 ---
 
@@ -1311,4 +1311,126 @@ Imprime resumen compacto al terminal:
 
 ---
 
-## Phase 7 — Connectors + Integration (PENDIENTE)
+## Phase 7 — Connectors + Integration (COMPLETADA + QA)
+
+### Objetivo
+Implementar los conectores formales para architect y vigil, el test de integración end-to-end,
+pulir el CLI, y crear la configuración de ejemplo `.licit.example.yaml`.
+
+### Módulos Implementados
+
+#### P7.1 — Connector Protocol
+
+**Archivo:** `src/licit/connectors/base.py`
+
+Define la interfaz formal para todos los connectors:
+- `Connector` Protocol (`@runtime_checkable`): `name`, `enabled`, `available()`, `collect(evidence)`.
+- `ConnectorResult` dataclass con `connector_name`, `files_read`, `errors`.
+- `success` como `@property` computado: `files_read > 0 and len(errors) == 0`.
+- `has_errors` property para chequeo rápido.
+- `EvidenceBundle` importado solo bajo `TYPE_CHECKING` para evitar circular import.
+
+#### P7.2 — Architect Connector
+
+**Archivo:** `src/licit/connectors/architect.py`
+
+Lee 3 fuentes de datos de architect:
+- **Reports** (`_read_reports`): JSON files en `reports_dir`, parsea a `ArchitectReport` dataclass con task_id, status, model, cost, files_changed, timestamp. Cada campo validado con `isinstance`.
+- **Audit log** (`_read_audit_log`): JSONL append-only, parsea a `AuditEntry` dataclass. Líneas malformadas registran error pero no abortan.
+- **Config** (`_read_config`): YAML con guardrails, quality_gates, budget_usd, dry_run, rollback. `guardrail_count` usa `+=` (aditivo, no sobreescribe).
+- `available()` checa si `reports_dir` o `config_path` existen en disco.
+- Logging con structlog en cada operación.
+
+#### P7.3 — Vigil Connector
+
+**Archivo:** `src/licit/connectors/vigil.py`
+
+Lee SARIF security findings y SBOM:
+- **SARIF** (`_read_sarif`): parsea formato SARIF 2.1.0 — runs, results, locations. Cuenta findings por severidad (error→critical, warning→high, note→medium, else→low).
+- `_parse_run` refactorizado en 3 métodos: `_extract_tool_name`, `_parse_finding`, `_extract_location` — complejidad reducida de C901/18 a métodos < C901/10.
+- `_resolve_sarif_paths`: soporta path explícito (archivo o directorio), auto-detected SARIF files del ProjectContext, y deduplicación.
+- **SBOM** (`_read_sbom`): valida CycloneDX JSON, cuenta como file_read. V0 no enrichece EvidenceBundle (documentado para V1 con campos supply-chain).
+- Parsea **todos** los SARIF runs sin filtrar por tool name (consistente con el inline path).
+
+#### P7.4 — EvidenceCollector Refactorizado
+
+**Archivo:** `src/licit/core/evidence.py` (modificado)
+
+Refactorización significativa para integrar connectors:
+- `__init__` acepta `config: LicitConfig | None` — backwards compatible.
+- `_run_connectors(ev)`: si config disponible y connector enabled → usa connector formal. Si no → inline.
+- **Inline paths delegan a connectors**: `_collect_architect_evidence_inline` construye un `ArchitectConnector` temporal con config auto-detectada. `_collect_vigil_evidence_inline` construye un `VigilConnector` temporal. Cero duplicación de lógica de parsing.
+- `connector_results` property expone los resultados de la última ejecución.
+- Eliminados imports de `json` y `yaml` del módulo (ya no los necesita directamente).
+
+#### P7.5 — CLI Mejorado
+
+**Archivo:** `src/licit/cli.py` (modificado)
+
+- Todos los `EvidenceCollector(root, context)` actualizados a `EvidenceCollector(root, context, config)` — connectors siempre disponibles.
+- `licit connect architect`: auto-detecta `config_path`, muestra disponibilidad del connector con `available()`.
+- `licit connect vigil`: detecta SARIF files del ProjectContext, muestra disponibilidad.
+- `licit status`: muestra si connector está "enabled" o solo "detected". Muestra security findings si > 0.
+
+#### P7.6 — Config de Ejemplo
+
+**Archivo:** `.licit.example.yaml`
+
+Configuración completa documentada con todos los campos y comentarios explicativos. Incluye connectors con `audit_log`, `sarif_path`, `sbom_path`.
+
+#### P7.7 — Integration Tests
+
+**Archivo:** `tests/test_integration/test_full_flow.py`
+
+Test end-to-end con proyecto sintético (git init, commits humanos + AI, architect data, SARIF):
+- `TestFullFlow` (6 tests): init → trace → report → gaps → verify → status.
+- `TestConnectCommand` (2 tests): enable architect, disable vigil.
+- `TestConnectorEnrichedReport` (2 tests): architect enriches report, changelog works.
+- Usa `monkeypatch.chdir` para aislar cada test en su tmp_path.
+
+### Tests Implementados
+
+| Archivo | Tests | Cobertura |
+|---------|-------|-----------|
+| `test_connectors/test_architect.py` | 22 | Protocol, reports (read/empty/malformed/non-object), audit log (read/missing/malformed/empty), config (guardrails/budget/dry-run/missing/non-dict/no-guardrails), availability (3), full collect |
+| `test_connectors/test_vigil.py` | 22 | Protocol, SARIF (read/auto-detect/directory/missing/malformed/non-object/runs-not-list/dedup), parsing (levels/empty/multi-run/no-location), SBOM (read/missing/malformed), availability (4) |
+| `test_connectors/test_qa_edge_cases.py` | 20 | Architect (unicode/whitespace-yaml/guardrail-additive/500-lines/minimal-report/default-path/dry-run-false), Vigil (100-findings/unicode/unknown-level/no-tool/empty-dir/sbom-non-object/empty-runs), ConnectorResult (default/no-shared-list), cross-module (both-enabled/no-config-path/no-sarif), CLI (invalid-connector) |
+| `test_core/test_evidence.py` (añadidos) | 9 | Connector delegation (architect-enabled/disabled-fallback/no-config-fallback), connector_results reset, ConnectorResult computed (4), SARIF non-vigil tool |
+| `test_integration/test_full_flow.py` | 10 | Full flow E2E (init/trace/report/gaps/verify/status), connect (enable/disable), enriched report, changelog |
+| **Total Phase 7** | **83** | |
+
+### Resultados de QA
+
+#### Bugs encontrados y corregidos
+
+| # | Severidad | Descripción | Corrección |
+|---|-----------|-------------|------------|
+| 1 | **HIGH** | `_parse_run` en vigil.py tenía complejidad ciclomática 18 (C901). 18 branches anidados para extraer tool name, finding fields, y location. Difícil de mantener y propenso a bugs en nested dicts. | Refactorizado en 3 métodos estáticos: `_extract_tool_name()`, `_parse_finding()`, `_extract_location()`. Cada uno < 10 branches. |
+| 2 | **MEDIUM** | `_read_sbom(evidence, result)` recibía `evidence` como parámetro sin usarlo (ARG002). Parámetro muerto que confunde a quien lee la API. | Removido `evidence` de la firma. Call site actualizado a `_read_sbom(result)`. |
+| 3 | **MEDIUM** | `_read_audit_log`: `for line in ...: line = line.strip()` sobreescribía la variable del loop (PLW2901). Confuso, potencial fuente de bugs. | Renombrado a `raw_line`/`stripped`. |
+| 4 | **MEDIUM** | `guardrail_count = X` en architect connector usaba `=` en vez de `+=`. Si dos fuentes setean guardrails, la segunda sobreescribe la primera. | Cambiado a `guardrail_count += X`. Test `test_guardrail_count_additive` verifica. |
+
+#### Riesgos residuales
+
+| Riesgo | Severidad | Nota |
+|--------|-----------|------|
+| SBOM no enriquece EvidenceBundle — read-only validation | Low | Documentado como V1; EvidenceBundle necesita campos supply-chain primero |
+| `dry_run`/`rollback` defaultean a True si no se mencionan en YAML | Low | Correcto para architect (built-in feature); test `test_dry_run_explicitly_false` verifica el caso False |
+| Inline path siempre corre connectors incluso si no hay datos | Low | Connectors manejan gracefully la ausencia de datos (retornan vacío) |
+
+### Checklist de Verificación
+
+- [x] Todos los archivos creados y funcionales
+- [x] `pytest tests/ -q` — 789 tests, todos pasan
+- [x] `ruff check src/licit/` — Sin errores
+- [x] `mypy src/licit/ --strict` — Sin errores (50 archivos)
+- [x] `python -m licit --help` — 10 comandos visibles
+- [x] `licit connect architect` detecta datos y habilita connector
+- [x] `licit status` muestra connector status y security findings
+- [x] `licit report` genera reportes enriquecidos cuando connectors enabled
+- [x] E2E manual: init → connect architect → trace → status → report → gaps → verify
+- [x] Inline fallback: EvidenceCollector sin config sigue funcionando (backwards compat)
+- [x] Connectors delegan correctamente sin duplicación de código
+- [x] Vigil parsea SARIF de cualquier tool, no solo vigil-named
+- [x] `guardrail_count` es aditivo (+=), no sobreescribe (=)
+- [x] `_parse_run` refactorizado: complejidad < C901/10 por método

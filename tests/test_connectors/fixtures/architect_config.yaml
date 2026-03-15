@@ -1,0 +1,25 @@
+model: claude-sonnet-4
+provider: anthropic
+
+guardrails:
+  protected_files:
+    - .env
+    - secrets.yaml
+    - pyproject.toml
+  blocked_commands:
+    - rm -rf
+    - DROP TABLE
+  code_rules:
+    - no-eval
+    - no-exec
+  quality_gates:
+    - lint
+    - typecheck
+    - test
+
+costs:
+  budget_usd: 50.0
+  alert_threshold: 0.8
+
+dry_run: true
+rollback: true

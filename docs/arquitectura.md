@@ -17,7 +17,7 @@ licit (CLI)
 │   ├── eu_ai_act/   EU AI Act (Fase 4 — COMPLETADA)
 │   └── owasp_agentic/  OWASP Agentic Top 10 (Fase 5 — COMPLETADA)
 ├── reports/         Reportes + gap analysis (Fase 6 — COMPLETADA)
-└── connectors/      Integraciones opcionales (Fase 7)
+└── connectors/      Integraciones opcionales (Fase 7 — COMPLETADA)
 ```
 
 ## Stack tecnológico
@@ -41,7 +41,7 @@ licit (CLI)
 
 3. **Protocol para interfaces**: Las abstracciones entre módulos usan `typing.Protocol`, no herencia con clases abstractas.
 
-4. **Imports directos**: Todos los módulos de Fases 1-6 usan imports directos. Solo connectors (Fase 7) usa lazy imports.
+4. **Imports directos**: Todos los módulos usan imports directos. Los connectors usan `TYPE_CHECKING` guards para evitar imports circulares con `EvidenceBundle`.
 
 5. **Detección automática**: `ProjectDetector` infiere lenguajes, frameworks, CI/CD, herramientas de seguridad y configuraciones de agentes IA sin necesidad de configuración manual.
 
@@ -79,7 +79,7 @@ Proyecto del usuario
 └─────────────────┘                  └──────────────────┘  └───────────────────┘
 ```
 
-## Módulos implementados (Fases 1-6)
+## Módulos implementados (Fases 1-7)
 
 ### config/ — Configuración
 
@@ -91,7 +91,7 @@ Proyecto del usuario
 
 - **`models.py`**: 3 enums (`ComplianceStatus`, `ChangeSeverity`, `ProvenanceSource`) y 6 dataclasses (`ProvenanceRecord`, `ConfigChange`, `ControlRequirement`, `ControlResult`, `ComplianceSummary`, `GapItem`).
 - **`project.py`**: `ProjectDetector` con 8 métodos de detección. Produce un `ProjectContext` completo.
-- **`evidence.py`**: `EvidenceCollector` con 5 métodos de recopilación. Produce un `EvidenceBundle` con 18 campos.
+- **`evidence.py`**: `EvidenceCollector` que delega a connectors formales (con config) o inline temporales (sin config). Produce un `EvidenceBundle` con 18 campos. Acepta `LicitConfig` opcional para activar connectors.
 
 ### logging/ — Logging
 
@@ -137,9 +137,15 @@ Proyecto del usuario
 - **`html.py`**: Renderiza como HTML auto-contenido (sin CSS/JS externos). Badges de color por status. XSS-safe: escapa 5 caracteres (`&`, `<`, `>`, `"`, `'`).
 - **`summary.py`**: `print_summary()` imprime resumen compacto con barras de progreso ASCII al terminal.
 
+### connectors/ — Integraciones opcionales
+
+- **`base.py`**: Protocol `Connector` (`@runtime_checkable`). Define interfaz: `name`, `enabled`, `available()`, `collect(evidence)`. `ConnectorResult` dataclass con `success` computado (`files_read > 0 and no errors`).
+- **`architect.py`**: `ArchitectConnector` — lee 3 fuentes: reports JSON (`_read_reports`), audit JSONL (`_read_audit_log`), config YAML (`_read_config`). Extrae guardrails, quality gates, budget, dry-run/rollback. `guardrail_count` es aditivo (`+=`).
+- **`vigil.py`**: `VigilConnector` — parsea SARIF 2.1.0 con 4 métodos (`_parse_run`, `_extract_tool_name`, `_parse_finding`, `_extract_location`). Lee SBOM CycloneDX. `_resolve_sarif_paths` soporta archivo, directorio, y auto-detected con deduplicación.
+
 ### cli.py — Interfaz de línea de comandos
 
-10 comandos registrados con Click, todos funcionales. `report` genera reportes en 3 formatos (Markdown, JSON, HTML). `gaps` muestra brechas con recomendaciones y herramientas sugeridas. `verify` evalúa EU AI Act + OWASP Agentic Top 10 y retorna exit codes para CI/CD.
+10 comandos registrados con Click, todos funcionales. `report` genera reportes en 3 formatos (Markdown, JSON, HTML). `gaps` muestra brechas con recomendaciones y herramientas sugeridas. `verify` evalúa EU AI Act + OWASP Agentic Top 10 y retorna exit codes para CI/CD. `connect` muestra disponibilidad de datos al habilitar un connector.
 
 ## Fases de implementación
 
@@ -151,7 +157,7 @@ Proyecto del usuario
 | 4 | EU AI Act | **COMPLETADA** | Protocol, registry, evaluador (11 artículos), FRIA interactivo, Annex IV, templates Jinja2 |
 | 5 | OWASP | **COMPLETADA** | Evaluador OWASP Agentic Top 10 (10 controles), scoring por riesgo, template Jinja2 |
 | 6 | Reports | **COMPLETADA** | Reporte unificado, gap analyzer, Markdown/JSON/HTML, terminal summary |
-| 7 | Connectors | Pendiente | Integración con architect y vigil |
+| 7 | Connectors | **COMPLETADA** | Protocol Connector, ArchitectConnector, VigilConnector, integration tests |
 
 ## Grafo de dependencias
 
@@ -189,7 +195,11 @@ Phase 6: reports ← frameworks/* + evidence + core/models (COMPLETADA)
          reports/gap_analyzer ← core/models + config
          reports/markdown, json_fmt, html ← reports/unified
          reports/summary ← reports/unified + click
-Phase 7: connectors ← config (independiente)
+Phase 7: connectors ← config + core/evidence (COMPLETADA)
+         connectors/base (independiente — Protocol + ConnectorResult)
+         connectors/architect ← config.schema + base (TYPE_CHECKING: evidence)
+         connectors/vigil ← config.schema + base (TYPE_CHECKING: evidence)
+         core/evidence ← connectors/architect + connectors/vigil (inline delegation)
 ```
 
 ## Estructura de directorios del proyecto
@@ -254,17 +264,27 @@ licit-cli/
 │       │   ├── json_fmt.py    # Renderer JSON
 │       │   ├── html.py        # Renderer HTML auto-contenido
 │       │   └── summary.py     # Resumen terminal con barras de progreso
-│       └── connectors/         # (Fase 7)
+│       └── connectors/         # Fase 7 (COMPLETADA)
+│           ├── base.py        # Protocol Connector + ConnectorResult
+│           ├── architect.py   # ArchitectConnector (reports, audit, config)
+│           └── vigil.py       # VigilConnector (SARIF, SBOM)
 └── tests/
     ├── conftest.py             # Fixtures compartidos
-    ├── test_cli.py             # Tests de CLI (23)
+    ├── test_cli.py             # Tests de CLI (24)
     ├── test_qa_edge_cases.py   # Tests QA Phase 1 (61)
+    ├── test_connectors/
+    │   ├── test_architect.py       # Tests architect connector (22)
+    │   ├── test_vigil.py           # Tests vigil connector (22)
+    │   ├── test_qa_edge_cases.py   # Tests QA Phase 7 (20)
+    │   └── fixtures/               # SARIF, JSON, YAML, JSONL fixtures
+    ├── test_integration/
+    │   └── test_full_flow.py       # Tests E2E (10)
     ├── test_config/
     │   ├── test_schema.py      # Tests de schema (7)
     │   └── test_loader.py      # Tests de loader (9)
     ├── test_core/
     │   ├── test_project.py     # Tests de detección (12)
-    │   └── test_evidence.py    # Tests de evidencia (11)
+    │   └── test_evidence.py    # Tests de evidencia (20)
     ├── test_provenance/
     │   ├── test_heuristics.py      # Tests heurísticas (23)
     │   ├── test_git_analyzer.py    # Tests git analyzer (15)

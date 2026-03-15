@@ -423,7 +423,8 @@ class TestEvidenceCollectorEdgeCases:
         ev = collector.collect()
         assert ev.has_guardrails is False  # Empty guardrails dict → falsy
 
-    def test_sarif_non_vigil_tool_ignored(self, tmp_path: Path) -> None:
+    def test_sarif_non_vigil_tool_also_counted(self, tmp_path: Path) -> None:
+        """SARIF findings from any tool are counted, not just vigil."""
         sarif_data = {
             "runs": [{
                 "tool": {"driver": {"name": "semgrep"}},
@@ -435,7 +436,8 @@ class TestEvidenceCollectorEdgeCases:
         ctx.security.sarif_files = ["scan.sarif"]
         collector = EvidenceCollector(str(tmp_path), ctx)
         ev = collector.collect()
-        assert ev.security_findings_total == 0  # Only vigil findings counted
+        assert ev.security_findings_total == 1  # All SARIF tools counted
+        assert ev.security_findings_critical == 1
 
     def test_sarif_malformed_json(self, tmp_path: Path) -> None:
         (tmp_path / "bad.sarif").write_text("{not json", encoding="utf-8")

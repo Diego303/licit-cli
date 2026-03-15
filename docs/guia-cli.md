@@ -35,7 +35,7 @@ python -m licit [opciones] <comando> [argumentos]
 
 ```bash
 licit --version
-# licit, version 0.5.0
+# licit, version 0.7.0
 
 licit --verbose status
 # Muestra logs de debug durante la ejecución
@@ -106,32 +106,37 @@ licit status
 ```bash
 $ licit status
 
-Project: mi-proyecto-fastapi
-  Root: /home/user/mi-proyecto-fastapi
-  Languages: python
-  Frameworks: fastapi
-  Git: 142 commits, 3 contributors
+  licit Status
+  ────────────────────────────────────────
+  Project: mi-proyecto-fastapi
+  Config: .licit.yaml
 
-Config: .licit.yaml (loaded)
+  Frameworks:
+    [x] EU AI Act
+    [x] OWASP Agentic Top 10
+    [ ] NIST AI RMF (V1)
+    [ ] ISO 42001 (V1)
 
-Frameworks:
-  EU AI Act: enabled
-  OWASP Agentic: enabled
+  Data Sources:
+    [x] Git history (142 commits)
+    [x] Provenance tracking
+    [ ] Config changelog
+    [ ] FRIA document
+    [ ] Annex IV documentation
 
-Data sources:
-  Provenance: not collected
-  FRIA: not found
-  Annex IV: not found
-  Changelog: not found
+  Connectors:
+    [x] architect (.architect/config.yaml, enabled)
+    [x] vigil (.vigil.yaml, enabled)
+    Security findings: 3 total (1 critical, 1 high)
 
-Connectors:
-  architect: disabled
-  vigil: disabled
-
-Agent configs:
-  CLAUDE.md (claude-code)
-  .cursorrules (cursor)
+  Agent Configs (2):
+    - CLAUDE.md (claude-code)
+    - .cursorrules (cursor)
 ```
+
+El comando `status` ahora muestra:
+- Estado de connectors como "enabled" o "detected"
+- Conteo de security findings cuando hay hallazgos SARIF
 
 ---
 
@@ -157,17 +162,32 @@ licit connect {architect|vigil} [--enable|--disable]
 | `--enable` | (por defecto) | Habilita el conector |
 | `--disable` | | Deshabilita el conector |
 
+**Qué hace:**
+1. Habilita o deshabilita el conector en `.licit.yaml`.
+2. Al habilitar, auto-detecta rutas de configuración si no están configuradas.
+3. Verifica la disponibilidad de datos en disco con `available()`.
+4. Muestra feedback sobre si se encontraron datos del conector.
+
 **Ejemplo:**
 ```bash
 $ licit connect architect
-# Habilita el conector de architect
+  architect data found at: .architect/reports
+  Connector 'architect' enabled.
 
 $ licit connect vigil --enable
-# Habilita el conector de vigil
+  vigil data found
+  Connector 'vigil' enabled.
 
 $ licit connect architect --disable
-# Deshabilita el conector de architect
+  Connector 'architect' disabled.
 ```
+
+**Datos que enriquecen los conectores:**
+
+| Conector | Fuentes de datos | Evidencia aportada |
+|---|---|---|
+| **architect** | Reports JSON, audit JSONL, config YAML | Audit trail, guardrails, quality gates, budget, dry-run, rollback |
+| **vigil** | SARIF 2.1.0, SBOM CycloneDX | Security findings (critical/high/medium/low) |
 
 ---
 

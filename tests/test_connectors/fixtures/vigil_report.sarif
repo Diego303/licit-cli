@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "vigil",
+          "version": "1.2.0",
+          "informationUri": "https://github.com/vigil-ai/vigil"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "VIGIL-001",
+          "level": "error",
+          "message": {
+            "text": "Potential prompt injection vulnerability in user input handler"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers/input.py"
+                },
+                "region": {
+                  "startLine": 42,
+                  "startColumn": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "VIGIL-002",
+          "level": "warning",
+          "message": {
+            "text": "Unsanitized output from LLM passed to subprocess"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/executor.py"
+                },
+                "region": {
+                  "startLine": 88
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "VIGIL-003",
+          "level": "note",
+          "message": {
+            "text": "Consider adding rate limiting to AI API calls"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/client.py"
+                },
+                "region": {
+                  "startLine": 15
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

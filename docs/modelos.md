@@ -425,3 +425,109 @@ LicitConfig (raíz)
 ```
 
 Todos los modelos Pydantic usan `model_config = ConfigDict(extra="ignore")` implícitamente y permiten campos extra en el YAML sin error (se ignoran silenciosamente).
+
+---
+
+## Modelos de connectors (Fase 7)
+
+### ConnectorResult
+
+Resultado de una operación de lectura de un connector.
+
+```python
+@dataclass
+class ConnectorResult:
+    connector_name: str              # "architect", "vigil"
+    files_read: int = 0              # Archivos leídos exitosamente
+    errors: list[str] = field(default_factory=list)
+
+    @property
+    def success(self) -> bool:
+        """True si leyó archivos y no hubo errores."""
+        return self.files_read > 0 and len(self.errors) == 0
+
+    @property
+    def has_errors(self) -> bool:
+        return len(self.errors) > 0
+```
+
+**Uso**: Retornado por `Connector.collect()`, expuesto via `EvidenceCollector.connector_results`.
+
+### ArchitectReport
+
+Resumen parseado de un report JSON de architect.
+
+```python
+@dataclass
+class ArchitectReport:
+    path: str
+    task_id: str | None = None
+    status: str | None = None
+    model: str | None = None
+    cost_usd: float | None = None
+    files_changed: list[str] = field(default_factory=list)
+    timestamp: str | None = None
+```
+
+### AuditEntry
+
+Entrada individual del audit log JSONL de architect.
+
+```python
+@dataclass
+class AuditEntry:
+    event: str                                   # "task_start", "file_write", etc.
+    timestamp: str | None = None
+    details: dict[str, object] = field(default_factory=dict)
+```
+
+### SARIFFinding
+
+Hallazgo individual de un archivo SARIF.
+
+```python
+@dataclass
+class SARIFFinding:
+    rule_id: str                     # "VIGIL-001", "semgrep-rule-xyz"
+    level: str                       # "error", "warning", "note", "none"
+    message: str
+    file_path: str | None = None     # URI del archivo afectado
+    start_line: int | None = None    # Línea de inicio
+    tool_name: str = ""              # Nombre del tool del run SARIF
+```
+
+### SARIFSummary
+
+Resumen de findings de un run SARIF.
+
+```python
+@dataclass
+class SARIFSummary:
+    tool_name: str
+    total: int = 0
+    critical: int = 0               # level == "error"
+    high: int = 0                   # level == "warning"
+    medium: int = 0                 # level == "note"
+    low: int = 0                    # level == otro
+    findings: list[SARIFFinding] = field(default_factory=list)
+```
+
+### Connector Protocol
+
+Protocol que todos los connectors implementan.
+
+```python
+@runtime_checkable
+class Connector(Protocol):
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def enabled(self) -> bool: ...
+
+    def available(self) -> bool: ...
+
+    def collect(self, evidence: EvidenceBundle) -> ConnectorResult: ...
+```
+
+**Implementaciones**: `ArchitectConnector`, `VigilConnector`.
