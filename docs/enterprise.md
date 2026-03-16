@@ -115,7 +115,7 @@ licit gaps
 | Transparencia | Art. 13 | Evaluado (Annex IV, changelog) |
 | Supervisión humana | Art. 14 | Evaluado (review gates, dry-run, rollback) |
 | Obligaciones de deployer | Art. 26 | Evaluado (agent configs, monitoring) |
-| Evaluación de impacto (FRIA) | Art. 27 | Generador interactivo con auto-detección |
+| Evaluación de impacto (FRIA) | Art. 27 | Generador interactivo + modo `--auto` para CI/CD |
 | Documentación técnica | Annex IV | Generador auto-poblado desde metadatos |
 
 ### OWASP Agentic Top 10 — Cobertura actual

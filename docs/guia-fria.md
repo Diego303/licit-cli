@@ -7,9 +7,12 @@ El FRIA (Fundamental Rights Impact Assessment) es una evaluación obligatoria ba
 licit genera el FRIA mediante un cuestionario interactivo de 5 pasos con 16 preguntas. Varias respuestas se auto-detectan desde la configuración del proyecto.
 
 ```bash
-licit fria             # Iniciar nuevo FRIA
+licit fria             # Iniciar nuevo FRIA (interactivo)
+licit fria --auto      # Modo no-interactivo (CI/CD) — acepta auto-detecciones y defaults
 licit fria --update    # Actualizar FRIA existente
 ```
+
+> **Tip CI/CD:** Usa `licit fria --auto` en pipelines automatizados. Acepta todos los valores auto-detectados y usa la primera opción como default para preguntas sin detección. Los campos vacíos se pueden completar manualmente después con `--update`.
 
 ---
 

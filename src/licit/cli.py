@@ -75,6 +75,13 @@ def init(ctx: click.Context, framework: str) -> None:
         for cfg in context.agent_configs:
             click.echo(f"    - {cfg.path} ({cfg.agent_type})")
 
+    # Check for existing configuration
+    config_target = Path(ctx.obj.get("config_path") or "").name or ".licit.yaml"
+    existing_config = Path(root) / config_target
+    licit_dir = Path(root) / ".licit"
+    if existing_config.exists() or licit_dir.exists():
+        click.echo("\n  Warning: existing configuration found — overwriting.")
+
     # Build config
     config = LicitConfig()
     if framework == "eu-ai-act":
@@ -93,7 +100,7 @@ def init(ctx: click.Context, framework: str) -> None:
     config_file = save_config(config, ctx.obj.get("config_path"))
 
     # Create .licit directory
-    (Path(root) / ".licit").mkdir(exist_ok=True)
+    licit_dir.mkdir(exist_ok=True)
 
     click.echo(f"\n  Created {config_file.name}")
     click.echo("  Created .licit/ directory")
@@ -144,9 +151,13 @@ def trace(ctx: click.Context, since: str | None, gen_report: bool, stats: bool) 
     tracker = ProvenanceTracker(root, config.provenance)
     records = tracker.analyze(since=since)
 
-    ai_count = sum(1 for r in records if r.source == "ai")
-    human_count = sum(1 for r in records if r.source == "human")
-    click.echo(f"  Analyzed {len(records)} file records")
+    # Deduplicate for display: latest record per file
+    unique: dict[str, object] = {}
+    for r in records:
+        unique[r.file_path] = r
+    ai_count = sum(1 for r in unique.values() if r.source == "ai")  # type: ignore[union-attr]
+    human_count = sum(1 for r in unique.values() if r.source == "human")  # type: ignore[union-attr]
+    click.echo(f"  Analyzed {len(unique)} files across {len(records)} records")
     click.echo(f"  AI-generated: {ai_count} files")
     click.echo(f"  Human-written: {human_count} files")
 
@@ -210,7 +221,11 @@ def changelog(ctx: click.Context, since: str | None, fmt: str) -> None:
 
     click.echo(output)
 
-    output_path = config.changelog.output_path
+    # Adjust file extension to match the output format
+    base_path = config.changelog.output_path
+    if fmt == "json" and base_path.endswith(".md"):
+        base_path = base_path[:-3] + ".json"
+    output_path = base_path
     try:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         Path(output_path).write_text(output, encoding="utf-8")
@@ -222,8 +237,13 @@ def changelog(ctx: click.Context, since: str | None, fmt: str) -> None:
 
 @main.command()
 @click.option("--update", is_flag=True, help="Update existing FRIA")
+@click.option(
+    "--auto",
+    is_flag=True,
+    help="Accept all auto-detected values and defaults (non-interactive)",
+)
 @click.pass_context
-def fria(ctx: click.Context, update: bool) -> None:
+def fria(ctx: click.Context, update: bool, auto: bool) -> None:
     """Complete the Fundamental Rights Impact Assessment (Art. 27).
 
     Interactive questionnaire that generates a FRIA document.
@@ -231,6 +251,7 @@ def fria(ctx: click.Context, update: bool) -> None:
 
     Examples:
       licit fria             Start new FRIA
+      licit fria --auto      Non-interactive (CI/CD friendly)
       licit fria --update    Update existing FRIA
     """
     root = str(Path.cwd())
@@ -248,12 +269,12 @@ def fria(ctx: click.Context, update: bool) -> None:
 
         existing = json.loads(Path(config.fria.data_path).read_text(encoding="utf-8"))
         click.echo("  Updating existing FRIA...")
-        responses: dict[str, Any] = generator.run_interactive()
+        responses: dict[str, Any] = generator.run_interactive(auto=auto)
         for key, value in existing.items():
             if key not in responses or not responses[key]:
                 responses[key] = value
     else:
-        responses = generator.run_interactive()
+        responses = generator.run_interactive(auto=auto)
 
     generator.save_data(responses, config.fria.data_path)
     generator.generate_report(responses, config.fria.output_path)
@@ -334,6 +355,11 @@ def report(ctx: click.Context, framework: str, fmt: str, output: str | None) -> 
 
     generator = UnifiedReportGenerator(context, evidence, config)
     frameworks_to_eval = _get_frameworks(framework, config)
+
+    if not frameworks_to_eval:
+        click.echo("\n  No frameworks enabled. Enable at least one framework in .licit.yaml.")
+        return
+
     report_data = generator.generate(frameworks_to_eval)
 
     from licit.reports import html as html_reporter
@@ -348,7 +374,8 @@ def report(ctx: click.Context, framework: str, fmt: str, output: str | None) -> 
         content = md_reporter.render(report_data)
 
     ext = {"markdown": "md", "json": "json", "html": "html"}[fmt]
-    output_path = output or f".licit/reports/compliance-report.{ext}"
+    output_dir = config.reports.output_dir
+    output_path = output or f"{output_dir}/compliance-report.{ext}"
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     Path(output_path).write_text(content, encoding="utf-8")
 
@@ -386,6 +413,11 @@ def gaps(ctx: click.Context, framework: str) -> None:
 
     analyzer = GapAnalyzer(context, evidence, config)
     frameworks_to_eval = _get_frameworks(framework, config)
+
+    if not frameworks_to_eval:
+        click.echo("\n  No frameworks enabled. Enable at least one framework in .licit.yaml.")
+        return
+
     gap_items = analyzer.analyze(frameworks_to_eval)
 
     if not gap_items:

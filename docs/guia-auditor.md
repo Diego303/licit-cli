@@ -135,12 +135,12 @@ Si el proyecto tiene signing habilitado (`provenance.sign: true` en `.licit.yaml
 
 La clave de firma está en `.licit/.signing-key` y **no debe versionarse** en git.
 
-### Datos append-only
+### Datos deduplicados
 
-El store de provenance (`.licit/provenance.jsonl`) es append-only por diseño:
-- Nuevas ejecuciones de `licit trace` añaden registros, nunca borran
-- Para un archivo dado, el registro más reciente prevalece
-- El historial completo queda como audit trail
+El store de provenance (`.licit/provenance.jsonl`) usa merge + deduplicación:
+- Cada ejecución de `licit trace` fusiona resultados nuevos con los existentes
+- Para un archivo dado, el registro más reciente prevalece (latest wins)
+- El store contiene un registro por archivo único — no crece con ejecuciones repetidas
 
 ### Verificación manual
 

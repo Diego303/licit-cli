@@ -171,14 +171,16 @@ class TestGetByFile:
 
     def test_get_by_file(self, tmp_path: Path) -> None:
         store = ProvenanceStore(str(tmp_path / "prov.jsonl"))
-        store.append([
+        store.save([
             make_record(file_path="a.py"),
             make_record(file_path="b.py"),
             make_record(file_path="a.py", source="human",
                         timestamp=datetime(2026, 2, 1)),
         ])
         records = store.get_by_file("a.py")
-        assert len(records) == 2
+        # Store deduplicates: latest record per file wins
+        assert len(records) == 1
+        assert records[0].source == "human"
 
     def test_get_by_file_not_found(self, tmp_path: Path) -> None:
         store = ProvenanceStore(str(tmp_path / "prov.jsonl"))

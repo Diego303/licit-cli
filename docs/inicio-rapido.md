@@ -15,7 +15,7 @@ pip install licit-ai-cli
 Verifica:
 ```bash
 licit --version
-# licit, version 0.7.0
+# licit, version 1.0.0
 ```
 
 ---
@@ -117,13 +117,10 @@ licit trace --report             # Generar reporte Markdown
 
 Ejemplo de salida:
 ```
-  Analyzing git history...
-  Records: 45 files analyzed
-  AI-generated: 18 (40.0%)
-  Human-written: 22 (48.9%)
-  Mixed: 5 (11.1%)
-
-  Stored in .licit/provenance.jsonl
+  Analyzing git history for AI provenance...
+  Analyzed 45 files across 52 records
+  AI-generated: 18 files
+  Human-written: 22 files
 ```
 
 El comando `trace` analiza cada commit con 6 heurísticas (autor, mensaje, volumen, co-autores, patrones de archivos, hora) y clasifica cada archivo como `ai`, `human` o `mixed`.
@@ -160,10 +157,11 @@ El comando analiza el historial git de los archivos de configuración de agentes
 
 ```bash
 licit fria                # Cuestionario interactivo de 5 pasos
+licit fria --auto         # Modo no-interactivo (CI/CD)
 licit fria --update       # Actualizar FRIA existente
 ```
 
-licit auto-detecta respuestas donde puede (modelos usados, guardrails, testing, etc.) y pregunta confirmación. Genera `.licit/fria-data.json` y `.licit/fria-report.md`.
+licit auto-detecta respuestas donde puede (modelos usados, guardrails, testing, etc.) y pregunta confirmación. Con `--auto`, acepta todos los valores detectados y usa defaults para el resto, sin requerir input del terminal. Genera `.licit/fria-data.json` y `.licit/fria-report.md`.
 
 ---
 
@@ -239,7 +237,7 @@ mi-proyecto/
 | `licit connect <nombre>` | Habilita/deshabilita un conector |
 | `licit trace` | Rastrea proveniencia del código |
 | `licit changelog` | Genera changelog de configs de agentes |
-| `licit fria` | Evaluación de impacto en derechos fundamentales |
+| `licit fria [--auto]` | Evaluación de impacto en derechos fundamentales |
 | `licit annex-iv` | Documentación técnica EU AI Act |
 | `licit report` | Reporte unificado de compliance |
 | `licit gaps` | Identifica brechas de compliance |

@@ -37,7 +37,7 @@ El sistema se compone de 8 módulos en `src/licit/provenance/`:
 provenance/
 ├── heuristics.py          # Motor de 6 heurísticas de detección AI
 ├── git_analyzer.py        # Parser de git log con análisis heurístico
-├── store.py               # Store JSONL append-only
+├── store.py               # Store JSONL deduplicado
 ├── attestation.py         # Firmado HMAC-SHA256 + Merkle tree
 ├── tracker.py             # Orquestador del pipeline completo
 ├── report.py              # Generador de reportes Markdown
@@ -172,11 +172,11 @@ Para añadir soporte para otro agente (ej. Cursor), implementar el Protocol `Ses
 
 ## Store JSONL
 
-`ProvenanceStore` almacena registros de proveniencia en formato JSONL (JSON Lines) append-only.
+`ProvenanceStore` almacena registros de proveniencia en formato JSONL (JSON Lines) con deduplicación automática por archivo.
 
 ### Formato
 
-Cada línea es un objeto JSON independiente:
+Cada línea es un objeto JSON independiente (un registro por archivo único):
 
 ```json
 {"file_path": "src/app.py", "source": "ai", "confidence": 0.85, "method": "git-infer", "timestamp": "2026-03-10T14:30:00", "model": "claude-sonnet-4", "agent_tool": "claude-code"}
@@ -187,16 +187,17 @@ Cada línea es un objeto JSON independiente:
 
 | Operación | Método | Descripción |
 |---|---|---|
-| Append | `append(records)` | Añade registros al final del archivo |
-| Load | `load()` | Lee todos los registros del store |
-| Count | `count()` | Cuenta registros sin cargar todo en memoria |
-| Clear | `clear()` | Vacía el store (para re-análisis) |
+| Save | `save(records)` | Fusiona registros con los existentes (dedup por file path, latest wins) y reescribe |
+| Load | `load_all()` | Lee todos los registros del store |
+| Stats | `get_stats()` | Estadísticas de proveniencia (ai/human/mixed) |
+| By file | `get_by_file(path)` | Registros de un archivo específico |
 
 ### Características
 
-- **Append-only**: Los registros nunca se modifican ni eliminan en operación normal
+- **Merge + dedup**: Cada `save()` fusiona con registros existentes — el más reciente por archivo gana. El store no crece con ejecuciones repetidas.
 - **Inmutable por registro**: Cada registro tiene timestamp y firma (si habilitado)
 - **Serialización segura**: Usa `default=str` para datetime y otros tipos
+- **Manejo de errores**: `PermissionError` y otros errores de I/O se reportan con mensaje limpio
 - **Ruta configurable**: `provenance.store_path` en `.licit.yaml`
 
 ---

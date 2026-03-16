@@ -1,6 +1,6 @@
 # Seguridad
 
-> Versión soportada: **0.7.x**. Para la política de seguridad formal y reporte de vulnerabilidades, ver [SECURITY.md](../SECURITY.md).
+> Versión soportada: **1.0.x**. Para la política de seguridad formal y reporte de vulnerabilidades, ver [SECURITY.md](../SECURITY.md).
 
 ## Modelo de amenazas
 

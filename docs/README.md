@@ -69,9 +69,9 @@ licit report
 
 ## Versión actual
 
-- **v0.7.0** — Fases 1-7 completadas (Foundation + Provenance + Changelog + EU AI Act + OWASP Agentic Top 10 + Reports + Connectors)
+- **v1.0.0** — Release estable. Fases 1-7 completadas + QA exhaustivo (142 tests manuales × 5 proyectos × 10 edge cases)
 - Python 3.12+ requerido
-- 10 comandos CLI, todos funcionales
+- 10 comandos CLI, todos funcionales (`fria --auto` para CI/CD)
 - 789 tests, mypy strict, ruff clean
 - Connectors: architect (reports, audit log, config) + vigil (SARIF, SBOM)
 

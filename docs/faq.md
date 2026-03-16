@@ -85,20 +85,20 @@ $ licit --verbose status
 
 ### ¿Qué comandos están funcionales?
 
-Todos los 10 comandos están funcionales desde v0.7.0:
+Todos los 10 comandos están funcionales desde v0.7.0 y estabilizados en v1.0.0:
 
 | Comando | Fase | Estado actual |
 |---|---|---|
-| `init` | 1 | **Funcional** (v0.1.0) |
-| `status` | 1+7 | **Funcional** (v0.7.0 — connectors + security findings) |
-| `connect` | 1+7 | **Funcional** (v0.7.0 — availability feedback) |
-| `trace` | 2 | **Funcional** (v0.2.0) |
-| `changelog` | 3 | **Funcional** (v0.3.0) |
-| `fria` | 4 | **Funcional** (v0.4.0) |
-| `annex-iv` | 4 | **Funcional** (v0.4.0) |
-| `verify` | 4-6 | **Funcional** (v0.5.0 — EU AI Act + OWASP) |
-| `report` | 6 | **Funcional** (v0.6.0 — Markdown, JSON, HTML) |
-| `gaps` | 6 | **Funcional** (v0.6.0 — con tool suggestions) |
+| `init` | 1 | **Estable** (v1.0.0 — aviso en re-init) |
+| `status` | 1+7 | **Estable** (v0.7.0 — connectors + security findings) |
+| `connect` | 1+7 | **Estable** (v0.7.0 — availability feedback) |
+| `trace` | 2 | **Estable** (v1.0.0 — filtro por author date, store deduplicado) |
+| `changelog` | 3 | **Estable** (v1.0.0 — JSON guarda en .json) |
+| `fria` | 4 | **Estable** (v1.0.0 — modo `--auto` no-interactivo) |
+| `annex-iv` | 4 | **Estable** (v0.4.0) |
+| `verify` | 4-6 | **Estable** (v0.5.0 — EU AI Act + OWASP) |
+| `report` | 6 | **Estable** (v1.0.0 — respeta `output_dir` de config) |
+| `gaps` | 6 | **Estable** (v1.0.0 — mensaje claro sin frameworks) |
 
 ### `licit init` no detecta mi lenguaje/framework
 
@@ -245,7 +245,7 @@ Los archivos que **no** debes commitear:
 
 ---
 
-## Problemas conocidos (v0.7.0)
+## Problemas conocidos (v1.0.0)
 
 | Problema | Estado | Workaround |
 |---|---|---|
@@ -254,7 +254,6 @@ Los archivos que **no** debes commitear:
 | Session reader solo soporta Claude Code | Limitacion | Mas readers en fases futuras |
 | Pipe `\|` en nombre de organizacion rompe tabla Markdown en Annex IV | Limitacion | Evitar pipe en nombres de organizacion |
 | Markdown differ solo soporta headings ATX (`#`) | Limitacion | Los headings setext (`===`/`---`) no se detectan |
-| FRIA `run_interactive()` requiere terminal | Limitacion | No se puede ejecutar en modo batch; usar `--update` con datos pre-generados |
 
 ---
 

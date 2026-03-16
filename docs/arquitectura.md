@@ -101,7 +101,7 @@ Proyecto del usuario
 
 - **`heuristics.py`**: Motor de 6 heurísticas para detectar commits AI (author, message, bulk, co-author, file patterns, time). Promedio ponderado de solo heurísticas señalizantes. Soporta custom patterns desde JSON.
 - **`git_analyzer.py`**: Parsea `git log` con separadores `\x00`/`\x01` para robustez. `CommitInfo` dataclass. Inferencia de agente (8 patrones) y modelo (8 regex). Clasificación: >=0.7 → "ai", >=0.5 → "mixed", <0.5 → "human".
-- **`store.py`**: Store append-only JSONL. Operaciones: `append()`, `load_all()`, `get_stats()`, `get_by_file()`. Deduplicación por último timestamp.
+- **`store.py`**: Store JSONL deduplicado. Operaciones: `save()` (merge + dedup por file path), `load_all()`, `get_stats()`, `get_by_file()`. Cada `save()` fusiona con registros existentes y reescribe atómicamente.
 - **`attestation.py`**: HMAC-SHA256 para firmado individual, Merkle tree para firmado batch. Key management con generación automática.
 - **`tracker.py`**: Orquestador que combina git analysis + session reading + confidence filtering + signing + store.
 - **`report.py`**: Generador de reportes Markdown con summary, AI tools, models, file details.
@@ -232,7 +232,7 @@ licit-cli/
 │       ├── provenance/         # Fase 2 (COMPLETADA)
 │       │   ├── heuristics.py   # 6 heurísticas de detección AI
 │       │   ├── git_analyzer.py # Análisis de git history
-│       │   ├── store.py        # Store JSONL append-only
+│       │   ├── store.py        # Store JSONL deduplicado
 │       │   ├── attestation.py  # HMAC-SHA256 + Merkle tree
 │       │   ├── tracker.py      # Orquestador
 │       │   ├── report.py       # Generador de reportes Markdown

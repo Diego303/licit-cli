@@ -126,9 +126,8 @@ class TestChangelogCLI:
         # Output contains JSON blob followed by "Changelog saved to" message.
         # Verify the JSON is present in the output and parseable.
         assert '"changes"' in result.output
-        # Read the saved file instead of parsing CLI output
-        saved = (tmp_path / ".licit" / "changelog.md").read_text(encoding="utf-8")
-        # With --format json the saved file should also be valid JSON
+        # With --format json the file is saved with .json extension
+        saved = (tmp_path / ".licit" / "changelog.json").read_text(encoding="utf-8")
         data = json.loads(saved)
         assert "changes" in data
 

@@ -30,7 +30,7 @@ python3.12 -m pip install -e ".[dev]"
 
 # Verificar la instalación
 licit --version
-# licit, version 0.7.0
+# licit, version 1.0.0
 ```
 
 ### Dependencias de desarrollo
@@ -73,7 +73,7 @@ python3.12 -m licit status                  # Probar status
 
 ```
 src/licit/
-├── __init__.py         # __version__ = "0.7.0"
+├── __init__.py         # __version__ = "1.0.0"
 ├── __main__.py         # Entry point: python -m licit
 ├── py.typed            # PEP 561 marker
 ├── cli.py              # Todos los comandos Click
@@ -90,7 +90,7 @@ src/licit/
 ├── provenance/         # Fase 2 (COMPLETADA)
 │   ├── heuristics.py   # 6 heurísticas de detección AI
 │   ├── git_analyzer.py # Análisis de git history
-│   ├── store.py        # Store JSONL append-only
+│   ├── store.py        # Store JSONL deduplicado
 │   ├── attestation.py  # HMAC-SHA256 + Merkle tree
 │   ├── tracker.py      # Orquestador de provenance
 │   ├── report.py       # Generador de reportes Markdown

@@ -67,6 +67,7 @@ El FRIA (Fundamental Rights Impact Assessment) es obligatorio para sistemas de I
 **Comando:**
 ```bash
 licit fria            # Cuestionario interactivo nuevo
+licit fria --auto     # Modo no-interactivo (CI/CD)
 licit fria --update   # Actualizar FRIA existente
 ```
 

@@ -44,7 +44,8 @@ licit init --framework eu-ai-act
 licit trace --stats
 
 # Generar documentación regulatoria
-licit fria                    # Cuestionario interactivo
+licit fria                    # Cuestionario interactivo (local)
+licit fria --auto             # Modo no-interactivo (CI/CD)
 licit annex-iv --organization "Mi Empresa" --product "Mi App v2"
 
 # Evaluar estado
