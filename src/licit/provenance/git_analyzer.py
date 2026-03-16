@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
@@ -114,13 +114,17 @@ class GitAnalyzer:
         return records
 
     def _get_commits(self, since: str | None) -> list[CommitInfo]:
-        """Get parsed commits from git log."""
+        """Get parsed commits from git log.
+
+        When ``since`` is given, commits are filtered by **author date**
+        (the date recorded when the commit was originally written) rather
+        than committer date, so that ``--date`` overrides and cherry-picks
+        are handled correctly.
+        """
         # Use git's %xNN hex escapes to produce \x00 and \x01 in output
         # without embedding actual null bytes in the command-line argument.
         fmt = "%x00" + "%x01".join(["%H", "%an", "%ae", "%aI", "%s", "%b"])
         cmd = ["git", "log", f"--format={fmt}", "--numstat"]
-        if since:
-            cmd.append(f"--since={since}")
 
         try:
             result = subprocess.run(
@@ -142,7 +146,31 @@ class GitAnalyzer:
             )
             return []
 
-        return self._parse_git_log(result.stdout)
+        commits = self._parse_git_log(result.stdout)
+
+        # Filter by author date in Python instead of relying on git
+        # --since (which uses committer date and can miss commits whose
+        # author date was overridden with --date).
+        if since:
+            commits = self._filter_since(commits, since)
+
+        return commits
+
+    @staticmethod
+    def _filter_since(commits: list[CommitInfo], since: str) -> list[CommitInfo]:
+        """Keep only commits whose author date is on or after *since*."""
+        try:
+            cutoff = datetime.fromisoformat(since)
+            # If the user supplied a bare date (no timezone), make it
+            # timezone-aware in UTC so it can be compared with tz-aware
+            # author dates from git.
+            if cutoff.tzinfo is None:
+                cutoff = cutoff.replace(tzinfo=UTC)
+        except ValueError:
+            logger.warning("invalid_since_date", since=since)
+            return commits
+
+        return [c for c in commits if c.date >= cutoff]
 
     def _parse_git_log(self, output: str) -> list[CommitInfo]:
         """Parse git log output into CommitInfo objects.

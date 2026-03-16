@@ -16,11 +16,13 @@
 | **Phase 5** | OWASP Agentic | **COMPLETADA + QA** | 103/103 | 3 source + 1 template + 3 test |
 | **Phase 6** | Reports + Gap Analyzer | **COMPLETADA + QA** | 106/106 | 6 source + 7 test |
 | **Phase 7** | Connectors + Integration | **COMPLETADA + QA** | 83/83 | 4 source + 6 fixtures + 4 test |
+| **QA V0** | Test Exhaustivo + Bug Fixes | **COMPLETADA** | 789/789 | 5 source modificados + 3 test |
 
-**Verificación de calidad:**
+**Verificación de calidad (v1.0.0):**
 - `ruff check src/licit/` — Sin errores
 - `mypy src/licit/ --strict` — Sin errores (0 issues en 50 archivos)
-- `pytest tests/ -q` — 789 tests, todos pasan (113 Phase 1 + 167 Phase 2 + 93 Phase 3 + 124 Phase 4 + 103 Phase 5 + 106 Phase 6 + 83 Phase 7)
+- `pytest tests/ -q` — 789 tests, todos pasan
+- QA exhaustivo: 142 tests manuales × 5 proyectos simulados × 10 edge cases → 0 bugs pendientes
 
 ---
 
@@ -1434,3 +1436,98 @@ Test end-to-end con proyecto sintético (git init, commits humanos + AI, archite
 - [x] Vigil parsea SARIF de cualquier tool, no solo vigil-named
 - [x] `guardrail_count` es aditivo (+=), no sobreescribe (=)
 - [x] `_parse_run` refactorizado: complejidad < C901/10 por método
+
+---
+
+## QA V0 — Test Exhaustivo + Bug Fixes (COMPLETADA)
+
+### Objetivo
+
+Test exhaustivo de la CLI completa antes de release v1.0.0. Validar todos los comandos
+con todas sus flags y combinaciones, en 5 proyectos simulados que representan escenarios
+reales distintos, más 10 categorías de edge cases.
+
+### Metodología
+
+**5 proyectos de test:**
+
+| Proyecto | Características | Commits | Agent Configs |
+|----------|----------------|---------|---------------|
+| `python-fastapi` | Python completo con IA, CI/CD, tests | 11 | CLAUDE.md, .cursorrules |
+| `node-express` | Node.js/TypeScript con Copilot | 2 | AGENTS.md, copilot-instructions.md |
+| `rust-cli` | Rust sin agent configs | 1 | (ninguno) |
+| `empty-repo` | Repo mínimo (solo README) | 1 | (ninguno) |
+| `architect-project` | Python con architect, vigil, SARIF | 3 | CLAUDE.md, architect config ×2 |
+
+**142 tests ejecutados:**
+- 10 comandos × flags y combinaciones por proyecto
+- 10 categorías de edge cases (sin git, git sin commits, dir vacío, YAML corrupto, YAML inválido, store corrupto, permisos, stress 200 commits, configs extremas, unicode)
+- Coherencia cruzada (gaps↔verify, report↔gaps, trace↔stats, status↔filesystem, fria+annex-iv mejoran verify)
+- Validación de outputs (JSON parseable, HTML válido, JSONL bien formado)
+
+### Bugs Encontrados y Corregidos
+
+| # | Severidad | Bug | Archivo | Corrección |
+|---|-----------|-----|---------|------------|
+| 1 | **CRITICAL** | `trace --since` no filtraba commits (git `--since` usa committer date, no author date) | `git_analyzer.py` | Eliminado `--since` de git command. Nuevo método `_filter_since()` filtra por author date en Python con comparación timezone-aware |
+| 2 | **CRITICAL** | `trace` crasheaba con traceback completo en PermissionError | `store.py` | `save()` captura `OSError` → `click.ClickException` con mensaje limpio |
+| 3 | **HIGH** | Store crecía indefinidamente (append sin dedup, 10 runs × 37 records = 370 líneas) | `store.py` | `save()` ahora merge+dedup por file path (latest wins) y reescribe atómicamente. Store size proporcional a archivos únicos, no a número de runs |
+| 4 | **HIGH** | Discrepancia numérica trace (59 records) vs stats (48 files) — ambos decían "files" | `cli.py` | trace ahora muestra "Analyzed N files across M records" con dedup para display |
+| 5 | **MEDIUM** | `changelog --format json` guardaba JSON en `.licit/changelog.md` | `cli.py` | Extension de output ajustada al formato: `--format json` → `.changelog.json` |
+| 6 | **MEDIUM** | Config `reports.output_dir` ignorada (hardcoded `.licit/reports/`) | `cli.py` | Usa `config.reports.output_dir` en vez de path hardcoded |
+| 7 | **MEDIUM** | `init` sobrescribía config existente sin avisar | `cli.py` | Detecta config/directorio existente → muestra "Warning: existing configuration found — overwriting." |
+| 8 | **MEDIUM** | `gaps` decía "No gaps found! All requirements met." con 0 frameworks | `cli.py` | Comprueba `frameworks_to_eval` vacío → "No frameworks enabled." (también en `report`) |
+| 9 | **LOW** | Config corrupta/inválida: error solo en structlog, invisible para el usuario | `loader.py` | `_load_from_file()` ahora emite `click.echo` warning a stderr |
+| 10 | **FEATURE** | `fria` requería TTY — no funcionaba en CI/CD ni con stdin piped | `fria.py` + `cli.py` | Nuevo flag `--auto`: acepta valores auto-detectados + defaults sin prompts |
+
+### Archivos Modificados
+
+| Archivo | Cambios |
+|---------|---------|
+| `src/licit/provenance/git_analyzer.py` | `_filter_since()` para filtrado por author date; import `UTC` |
+| `src/licit/provenance/store.py` | `save()` merge+dedup; `_write_all()` con write mode; `OSError` handling con `click.ClickException` |
+| `src/licit/cli.py` | trace display dedup; changelog ext por formato; `output_dir` from config; init warning; gaps/report empty-frameworks check; fria `--auto` flag |
+| `src/licit/config/loader.py` | `click.echo` warnings en stderr para parse/validation errors |
+| `src/licit/frameworks/eu_ai_act/fria.py` | `run_interactive(auto=bool)` con modo no-interactivo |
+| `tests/test_provenance/test_tracker.py` | Test `--since` actualizado (filtering en Python, no git flag) |
+| `tests/test_provenance/test_qa_edge_cases.py` | Test `--since` y `get_by_file` actualizados a nuevo store behavior |
+| `tests/test_provenance/test_store.py` | `get_by_file` test actualizado (dedup: 1 record, not 2) |
+| `tests/test_changelog/test_qa_edge_cases.py` | changelog JSON test: `.changelog.json` en vez de `.changelog.md` |
+
+### Resultados de QA
+
+| Categoría | Tests | OK | FAIL | WARN |
+|-----------|-------|----|------|------|
+| Comandos (×5 proyectos) | 90 | 90 | 0 | 0 |
+| Edge cases | 13 | 13 | 0 | 0 |
+| Coherencia cruzada | 8 | 8 | 0 | 0 |
+| Config variations | 8 | 8 | 0 | 0 |
+| CLI global | 10 | 10 | 0 | 0 |
+| Output validation | 5 | 5 | 0 | 0 |
+| Stress test (200 commits) | 5 | 5 | 0 | 0 |
+| FRIA --auto | 3 | 3 | 0 | 0 |
+| **Total** | **142** | **142** | **0** | **0** |
+
+**Rendimiento (stress test, 200 commits):**
+- `trace`: 1.7s
+- `trace --stats`: 1.4s
+- `report`: 2.0s
+- `gaps`: 2.0s
+- `verify`: 1.8s
+
+### Checklist de Verificación
+
+- [x] `pytest tests/ -q` — 789 tests, todos pasan
+- [x] `ruff check src/licit/` — Sin errores
+- [x] `trace --since` filtra correctamente por author date
+- [x] `trace` no crashea con PermissionError (mensaje limpio)
+- [x] Store no crece con runs repetidos (48 lines constante tras 4 runs)
+- [x] `changelog --format json` guarda en `.json`, no `.md`
+- [x] `reports.output_dir` de config respetado
+- [x] `init` avisa al sobrescribir config existente
+- [x] `gaps`/`report` muestran "No frameworks enabled" cuando corresponde
+- [x] Config corrupta muestra warning visible
+- [x] `fria --auto` genera archivos sin input interactivo
+- [x] 5 proyectos simulados × todos los comandos × todas las flags = 0 fallos
+- [x] Edge cases (sin git, sin commits, unicode, stress 200 commits) = 0 crashes
+- [x] Coherencia: gaps↔verify, report↔gaps, trace↔stats, fria+annex-iv mejoran verify

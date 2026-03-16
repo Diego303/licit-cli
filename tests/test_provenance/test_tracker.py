@@ -76,9 +76,10 @@ class TestAnalyze:
             records = tracker.analyze(since="2026-01-01")
 
         assert records == []
-        # Verify --since was passed to git
-        call_args = mock_run.call_args[0][0]
-        assert any("--since=2026-01-01" in str(arg) for arg in call_args)
+        # Since filtering is now done in Python (by author date),
+        # --since is no longer passed to git. Verify the subprocess
+        # was still called (git log ran).
+        assert mock_run.called
 
     def test_analyze_disabled(self, tmp_path: Path) -> None:
         config = _make_config(tmp_path, enabled=False)

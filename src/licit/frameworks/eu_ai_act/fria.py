@@ -291,14 +291,23 @@ class FRIAGenerator:
         self.context = context
         self.evidence = evidence
 
-    def run_interactive(self) -> dict[str, Any]:
-        """Run interactive FRIA questionnaire, returning field->answer mapping."""
+    def run_interactive(self, *, auto: bool = False) -> dict[str, Any]:
+        """Run FRIA questionnaire, returning field->answer mapping.
+
+        Args:
+            auto: If True, accept all auto-detected values and use
+                  first-choice defaults for unanswered questions,
+                  without prompting the user.  Suitable for CI/CD.
+        """
         responses: dict[str, Any] = {}
 
         click.echo("\n" + "=" * 60)
         click.echo("  FUNDAMENTAL RIGHTS IMPACT ASSESSMENT (FRIA)")
         click.echo("  EU AI Act -- Article 27")
         click.echo("=" * 60 + "\n")
+
+        if auto:
+            click.echo("  Running in auto mode — using detected values and defaults.\n")
 
         for step in FRIA_STEPS:
             click.echo(f"\n{'─' * 50}")
@@ -311,12 +320,29 @@ class FRIAGenerator:
                 auto_value: str | None = None
                 if q.get("auto_detect"):
                     auto_value = self._auto_detect(q["field"])
+
+                if auto:
+                    # Auto mode: use detected value or first choice/empty
                     if auto_value:
                         click.echo(f"  [{q['id']}] {q['question']}")
-                        click.echo(f"  -> Auto-detected: {auto_value}")
-                        if click.confirm("    Accept this value?", default=True):
-                            responses[q["field"]] = auto_value
-                            continue
+                        click.echo(f"  -> Auto: {auto_value}")
+                        responses[q["field"]] = auto_value
+                    elif q["type"] == "choice":
+                        responses[q["field"]] = q["choices"][0]
+                        click.echo(f"  [{q['id']}] {q['question']}")
+                        click.echo(f"  -> Default: {q['choices'][0]}")
+                    else:
+                        responses[q["field"]] = ""
+                        click.echo(f"  [{q['id']}] {q['question']}")
+                        click.echo("  -> (empty — fill in manually later)")
+                    continue
+
+                if auto_value:
+                    click.echo(f"  [{q['id']}] {q['question']}")
+                    click.echo(f"  -> Auto-detected: {auto_value}")
+                    if click.confirm("    Accept this value?", default=True):
+                        responses[q["field"]] = auto_value
+                        continue
 
                 click.echo(f"  [{q['id']}] {q['question']}")
                 if q.get("help"):

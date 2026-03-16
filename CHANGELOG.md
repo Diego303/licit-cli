@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Nothing yet.
 
+## [1.0.0] — 2026-03-16
+
+### Added
+
+- **`licit fria --auto`** — Non-interactive mode for CI/CD pipelines. Accepts all auto-detected values and uses first-choice defaults for unanswered questions. Generates both `fria-data.json` and `fria-report.md` without requiring TTY input.
+
+### Fixed
+
+#### QA Hardening — V0 Exhaustive Test (142 tests, 5 projects, 10 edge cases)
+
+Full QA sweep across 5 simulated projects (Python/FastAPI, Node/Express, Rust, empty repo, architect+vigil) with all command/flag combinations, edge cases, and cross-command coherence checks.
+
+- **(Critical)** `git_analyzer.py`: `trace --since` did not filter commits by date. Root cause: git's `--since` flag filters by **committer date** (when the commit was physically made), not **author date** (the date recorded in `--date=` overrides). Commits created today with `--date=2026-01-10` would pass a `--since=2026-01-11` filter because their committer date was today. Fix: removed `--since` from git command, added `_filter_since()` method that filters parsed commits by author date in Python, with timezone-aware comparison (bare dates treated as UTC).
+- **(Critical)** `store.py`: `licit trace` crashed with a full Python traceback (`PermissionError`) when `.licit/` directory had read-only permissions. Fix: `save()` method now catches `OSError` and raises `click.ClickException` with a clean user-facing message: `"Cannot write to .licit/provenance.jsonl: Permission denied. Check directory permissions."`.
+- **(High)** `store.py`: Provenance store grew unboundedly — every `licit trace` run appended all records to the JSONL file. After 10 runs, a 37-record project had 370 lines. Fix: `save()` now merges incoming records with existing ones, deduplicating by file path (latest timestamp wins), then atomically rewrites the store. Store size is now proportional to unique files, not number of runs.
+- **(High)** `cli.py`: `trace` displayed "Analyzed 37 file records" while `--stats` showed "Total files tracked: 35" — different numbers for the same data. Root cause: `trace` counted raw records (including duplicates from files touched in multiple commits) while `stats` counted unique files. Fix: `trace` now deduplicates for display, showing "Analyzed N files across M records".
+- **(Medium)** `cli.py`: `changelog --format json` saved JSON content to `.licit/changelog.md` (a `.md` file), overwriting the Markdown version. Fix: output path extension now matches format — `--format json` saves to `.licit/changelog.json`.
+- **(Medium)** `cli.py`: `reports.output_dir` configuration in `.licit.yaml` was ignored — reports always saved to hardcoded `.licit/reports/`. Fix: report command now reads `config.reports.output_dir` for the default output path.
+- **(Medium)** `cli.py`: `licit init` silently overwrote existing `.licit.yaml` and `.licit/` directory on re-initialization. Fix: now displays "Warning: existing configuration found — overwriting." when config or data directory already exists.
+- **(Medium)** `cli.py`: `licit gaps` displayed "No compliance gaps found! All requirements met." when no frameworks were enabled — misleading since nothing was evaluated. Same issue in `licit report` (showed "0/0 controls compliant"). Fix: both commands now check for empty framework list first and display "No frameworks enabled. Enable at least one framework in .licit.yaml."
+- **(Low)** `loader.py`: Config parse errors (corrupt YAML, invalid values) were only logged via structlog — invisible to users not running with `--verbose`. Fix: `_load_from_file()` now emits a visible `click.echo` warning to stderr: "Warning: .licit.yaml has invalid YAML — using defaults. Run with --verbose for details."
+
+### Changed
+
+- **Provenance store architecture**: Changed from append-only to merge-and-replace. `ProvenanceStore.save()` (aliased as `append()` for backwards compatibility) now reads existing records, merges with new ones by file path (latest wins), and rewrites the store atomically. `get_stats()` no longer needs to deduplicate on read.
+- **Since filtering architecture**: Date filtering for `trace --since` moved from git-level (`--since=` flag) to application-level (`_filter_since()` in `GitAnalyzer`). This correctly handles commits with overridden author dates, cherry-picks, and rebases.
+- Test suite: 789 tests, all passing. Lint: 0 ruff errors.
+- `pyproject.toml` version bumped to `1.0.0`.
+
 ## [0.7.0] — 2026-03-15
 
 ### Added

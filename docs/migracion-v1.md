@@ -1,6 +1,6 @@
 # Guía de migración V0 → V1
 
-> **Estado**: Este documento se actualizará cuando V1 entre en desarrollo. Por ahora documenta el contrato de V0 y los cambios planificados.
+> **Estado**: V1.0.0 ha sido publicada. Los cambios de V0 → V1 se detallan en [CHANGELOG.md](../CHANGELOG.md). Este documento documenta el contrato de estabilidad y los cambios realizados.
 
 ---
 

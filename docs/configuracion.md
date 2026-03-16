@@ -12,7 +12,7 @@ Cuando licit carga la configuración, sigue este orden de prioridad:
 2. **Archivo en directorio actual**: `.licit.yaml` en el cwd
 3. **Defaults**: Si no existe archivo, usa valores por defecto
 
-Si el archivo existe pero tiene errores de sintaxis YAML o validación, licit registra un warning y usa los defaults.
+Si el archivo existe pero tiene errores de sintaxis YAML o validación, licit muestra un warning visible en terminal y usa los defaults. Con `--verbose`, muestra el error completo.
 
 ---
 
@@ -43,7 +43,7 @@ changelog:
     - .github/agents/*.md
     - .architect/config.yaml
     - architect.yaml
-  output_path: .licit/changelog.md
+  output_path: .licit/changelog.md  # --format json guarda en .licit/changelog.json
 
 frameworks:
   eu_ai_act: true        # Habilitar evaluación EU AI Act
@@ -310,7 +310,7 @@ Configuración para el FRIA (EU AI Act Artículo 27).
 
 | Campo | Tipo | Default | Descripción |
 |---|---|---|---|
-| `output_dir` | str | `.licit/reports` | Directorio de salida |
+| `output_dir` | str | `.licit/reports` | Directorio de salida para reportes (respetado por `licit report`) |
 | `default_format` | str | `markdown` | Formato: markdown, json, html |
 | `include_evidence` | bool | `true` | Incluir evidencia en reportes |
 | `include_recommendations` | bool | `true` | Incluir recomendaciones |
@@ -324,8 +324,9 @@ licit almacena toda su data interna en el directorio `.licit/` dentro de la raí
 ```
 .licit/
 ├── .signing-key        # Clave HMAC-SHA256 (auto-generada si sign=true)
-├── provenance.jsonl    # Store de trazabilidad (JSONL append-only)
-├── changelog.md        # Changelog de configs de agentes
+├── provenance.jsonl    # Store de trazabilidad (JSONL deduplicado)
+├── changelog.md        # Changelog de configs (Markdown)
+├── changelog.json      # Changelog de configs (JSON, si --format json)
 ├── fria-data.json      # Datos raw del FRIA
 ├── fria-report.md      # Reporte FRIA legible
 ├── annex-iv.md         # Documentación técnica Anexo IV

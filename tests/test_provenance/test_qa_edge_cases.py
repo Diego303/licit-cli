@@ -422,15 +422,18 @@ class TestGitAnalyzerEdgeCases:
         )
         assert analyzer._infer_agent(commit) == "devin"
 
-    def test_since_parameter_passed_to_git(self, tmp_path: Path) -> None:
+    def test_since_parameter_filters_by_author_date(self, tmp_path: Path) -> None:
+        """Since filtering is done in Python by author date, not by git flag."""
         analyzer = GitAnalyzer(str(tmp_path))
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 args=[], returncode=0, stdout="", stderr=""
             )
             analyzer.analyze(since="2026-01-01")
+        # git command should NOT contain --since (filtering is in Python now)
         call_args = mock_run.call_args[0][0]
-        assert any("--since=2026-01-01" in str(arg) for arg in call_args)
+        assert not any("--since" in str(arg) for arg in call_args)
+        assert mock_run.called
 
 
 # ─────────────────────────────────────────────────
@@ -494,15 +497,17 @@ class TestStoreEdgeCases:
         stats = store.get_stats()
         assert stats["ai_percentage"] == 0.0
 
-    def test_get_by_file_returns_all_versions(self, tmp_path: Path) -> None:
+    def test_get_by_file_returns_latest_version(self, tmp_path: Path) -> None:
         store = ProvenanceStore(str(tmp_path / "prov.jsonl"))
-        store.append([
+        store.save([
             _record(file_path="a.py", source="ai", timestamp=datetime(2026, 1, 1)),
             _record(file_path="a.py", source="human", timestamp=datetime(2026, 1, 15)),
             _record(file_path="a.py", source="mixed", timestamp=datetime(2026, 2, 1)),
         ])
         records = store.get_by_file("a.py")
-        assert len(records) == 3
+        # Store deduplicates: only the latest record per file is kept
+        assert len(records) == 1
+        assert records[0].source == "mixed"
 
     def test_load_handles_blank_lines(self, tmp_path: Path) -> None:
         store_path = tmp_path / "prov.jsonl"

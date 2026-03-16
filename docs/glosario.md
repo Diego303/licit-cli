@@ -32,8 +32,8 @@ Términos técnicos, regulatorios y de dominio usados en licit y su documentaci�
 | **SARIF** | Static Analysis Results Interchange Format. Formato estándar OASIS para resultados de análisis estático de código. Versión 2.1.0. | Leído por VigilConnector |
 | **SBOM** | Software Bill of Materials. Inventario formal de componentes de software. Formato CycloneDX usado por vigil. | Leído por VigilConnector (`sbom_path`) |
 | **CycloneDX** | Estándar OWASP para SBOM. Formato JSON/XML para describir componentes de software, sus versiones y vulnerabilidades. | Formato de SBOM soportado |
-| **JSONL** | JSON Lines. Formato donde cada línea es un JSON object independiente. Ideal para stores append-only. | Store de provenance (`.licit/provenance.jsonl`) |
-| **Append-only** | Store que solo permite añadir registros, nunca modificar ni eliminar. Garantiza inmutabilidad del historial. | ProvenanceStore |
+| **JSONL** | JSON Lines. Formato donde cada línea es un JSON object independiente. | Store de provenance (`.licit/provenance.jsonl`) |
+| **Merge + Dedup** | Store que fusiona registros nuevos con existentes, manteniendo solo el más reciente por archivo. Evita crecimiento ilimitado. | ProvenanceStore |
 
 ---
 

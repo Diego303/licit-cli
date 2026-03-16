@@ -21,13 +21,15 @@ Teams using AI coding assistants (Claude Code, Cursor, Copilot, Codex) face thre
 
 ```
 licit init       →  Auto-detect project: languages, frameworks, CI/CD, agent configs
+licit init       →  Auto-detect project: languages, frameworks, CI/CD, agent configs
 licit trace      →  Track code provenance (human vs AI) from git history
 licit changelog  →  Monitor agent config changes (CLAUDE.md, .cursorrules, etc.)
 licit fria       →  Generate Fundamental Rights Impact Assessment (EU AI Act Art. 27)
+licit fria --auto → Non-interactive FRIA for CI/CD pipelines
 licit annex-iv   →  Generate Annex IV Technical Documentation
 licit report     →  Unified compliance report (Markdown, JSON, HTML)
 licit gaps       →  Find compliance gaps with actionable recommendations
-licit verify     →  CI/CD gate: exit 0 (pass) or exit 1 (fail)
+licit verify     →  CI/CD gate: exit 0 (pass) / exit 1 (fail) / exit 2 (partial)
 licit status     →  Quick compliance overview
 licit connect    →  Configure optional connectors (architect, vigil)
 ```
@@ -87,16 +89,10 @@ licit trace --report             # Generate Markdown report
 Output example:
 
 ```
-  Analyzing git history...
-  Records: 45 files analyzed
-  AI-generated: 18 (40.0%)
-  Human-written: 22 (48.9%)
-  Mixed: 5 (11.1%)
-
-  AI tools detected: claude-code (15), cursor (3)
-  Models detected: claude-sonnet-4 (12), claude-opus-4 (3), gpt-4o (3)
-
-  Stored in .licit/provenance.jsonl
+  Analyzing git history for AI provenance...
+  Analyzed 45 files across 52 records
+  AI-generated: 18 files
+  Human-written: 22 files
 ```
 
 ### Evaluate Compliance
@@ -140,19 +136,23 @@ Output example:
 - name: Compliance check
   run: |
     pip install licit-ai-cli
+    licit init
+    licit trace
+    licit fria --auto
+    licit annex-iv
     licit verify
 ```
 
-Exit codes: `0` = compliant, `1` = non-compliant, `2` = partially compliant.
+Exit codes: `0` = fully compliant, `1` = non-compliant, `2` = partially compliant.
 
 ## Frameworks Supported
 
 | Framework | Version | Status |
 |-----------|---------|--------|
-| EU AI Act | Regulation (EU) 2024/1689 | **V0 — Implemented** |
-| OWASP Agentic Top 10 | 2025 | **V0 — Implemented** |
-| NIST AI RMF | AI 100-1 | Planned (V1) |
-| ISO/IEC 42001 | 2023 | Planned (V1) |
+| EU AI Act | Regulation (EU) 2024/1689 | **V1 — Stable** |
+| OWASP Agentic Top 10 | 2025 | **V1 — Stable** |
+| NIST AI RMF | AI 100-1 | Planned (V2) |
+| ISO/IEC 42001 | 2023 | Planned (V2) |
 
 ### EU AI Act Coverage
 
@@ -281,7 +281,7 @@ provenance:
   confidence_threshold: 0.6               # Minimum confidence (0.0-1.0)
   sign: false                             # HMAC-SHA256 signing
   sign_key_path: null                     # Custom key path (auto-generates if null)
-  store_path: .licit/provenance.jsonl     # Append-only JSONL store
+  store_path: .licit/provenance.jsonl     # Deduplicated JSONL store
 
 changelog:
   enabled: true
@@ -361,7 +361,7 @@ src/licit/
 ├── provenance/                         # ✅ Phase 2 — complete
 │   ├── heuristics.py                   # 6-heuristic AI commit scoring engine
 │   ├── git_analyzer.py                 # Git history analysis + agent/model inference
-│   ├── store.py                        # Append-only JSONL provenance store
+│   ├── store.py                        # Deduplicated JSONL provenance store
 │   ├── attestation.py                  # HMAC-SHA256 signing + Merkle tree
 │   ├── tracker.py                      # Orchestrator (git + sessions + sign + store)
 │   ├── report.py                       # Markdown report generator
@@ -424,7 +424,7 @@ Full documentation (in Spanish) is available in the [`docs/`](docs/) directory:
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests (789 tests)
+# Run tests
 pytest tests/ -q
 
 # Lint
@@ -446,10 +446,10 @@ mypy src/licit/ --strict
 
 | Version | Key Features |
 |---------|-------------|
-| **V0** (current) | CLI, provenance tracking (git + Claude Code sessions), EU AI Act (11 articles), OWASP Agentic Top 10, FRIA, Annex IV, unified reports (MD/JSON/HTML), gap analysis, CI/CD gate, architect + vigil connectors |
-| **V0.x** | Cursor/Codex session readers, PDF reports, GitHub Action |
-| **V1** | NIST AI RMF, ISO 42001, plugin system, Sigstore, MCP Server |
-| **V2** | Web dashboard, multi-project, trend analysis, AI remediation |
+| **V1** (current) | CLI, provenance tracking (git + Claude Code sessions), EU AI Act (11 articles), OWASP Agentic Top 10, FRIA (interactive + auto), Annex IV, unified reports (MD/JSON/HTML), gap analysis, CI/CD gate, architect + vigil connectors |
+| **V1.x** | Cursor/Codex session readers, PDF reports, GitHub Action |
+| **V2** | NIST AI RMF, ISO 42001, plugin system, Sigstore, MCP Server |
+| **V3** | Web dashboard, multi-project, trend analysis, AI remediation |
 
 ## License
 

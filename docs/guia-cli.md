@@ -35,7 +35,7 @@ python -m licit [opciones] <comando> [argumentos]
 
 ```bash
 licit --version
-# licit, version 0.7.0
+# licit, version 1.0.0
 
 licit --verbose status
 # Muestra logs de debug durante la ejecución
@@ -205,7 +205,7 @@ licit trace [--since DATE|TAG] [--report] [--stats]
 
 | Opción | Descripción |
 |---|---|
-| `--since` | Analiza commits desde una fecha (YYYY-MM-DD) o tag de git |
+| `--since` | Analiza commits desde una fecha (YYYY-MM-DD). Filtra por author date |
 | `--report` | Genera archivo de reporte de proveniencia en `.licit/reports/provenance.md` |
 | `--stats` | Muestra estadísticas en terminal |
 
@@ -213,23 +213,26 @@ licit trace [--since DATE|TAG] [--report] [--stats]
 1. Ejecuta `GitAnalyzer` para analizar commits con 6 heurísticas (autor, mensaje, volumen, co-autores, patrones de archivos, hora).
 2. Opcionalmente lee logs de sesión de agentes (Claude Code).
 3. Clasifica cada archivo como `ai` (score >= 0.7), `mixed` (>= 0.5) o `human` (< 0.5).
-4. Almacena resultados en `.licit/provenance.jsonl` (append-only).
+4. Almacena resultados en `.licit/provenance.jsonl` (merge + deduplicación por archivo).
 5. Si `sign: true`, firma cada registro con HMAC-SHA256.
 
 **Ejemplo:**
 ```bash
-$ licit trace --since 2026-01-01 --stats
+$ licit trace --since 2026-01-01
 
-  Analyzing git history...
-  Records: 45 files analyzed
-  AI-generated: 18 (40.0%)
-  Human-written: 22 (48.9%)
-  Mixed: 5 (11.1%)
+  Analyzing git history for AI provenance...
+  Analyzed 45 files across 52 records
+  AI-generated: 18 files
+  Human-written: 22 files
 
-  AI tools detected: claude-code (15), cursor (3)
-  Models detected: claude-sonnet-4 (12), claude-opus-4 (3), gpt-4o (3)
+$ licit trace --stats
 
-  Stored in .licit/provenance.jsonl
+  Provenance Statistics
+  ────────────────────────────────────────
+  Total files tracked: 45
+  AI-generated:        18 (40.0%)
+  Human-written:       22
+  Mixed:               5
 ```
 
 **Ejemplo con reporte:**
@@ -305,7 +308,7 @@ $ licit changelog
 **Ejemplo JSON:**
 ```bash
 $ licit changelog --format json --since 2026-03-01
-# Genera JSON con array "changes" y guarda en .licit/changelog.md
+# Genera JSON con array "changes" y guarda en .licit/changelog.json
 ```
 
 **Clasificación de severidad:**
@@ -336,7 +339,7 @@ Completa la Evaluación de Impacto en Derechos Fundamentales (EU AI Act Artícul
 > **Estado**: **Funcional** (Fase 4 completada).
 
 ```bash
-licit fria [--update]
+licit fria [--update] [--auto]
 ```
 
 **Opciones:**
@@ -344,10 +347,11 @@ licit fria [--update]
 | Opción | Descripción |
 |---|---|
 | `--update` | Actualiza un FRIA existente en lugar de crear uno nuevo |
+| `--auto` | Modo no-interactivo: acepta valores auto-detectados y defaults sin prompts (ideal para CI/CD) |
 
 **Qué hace:**
 1. Detecta el proyecto y recopila evidencia disponible.
-2. Ejecuta un cuestionario interactivo de 5 pasos (16 preguntas).
+2. Ejecuta un cuestionario interactivo de 5 pasos (16 preguntas). Con `--auto`, acepta automáticamente todos los valores detectados y usa la primera opción como default para preguntas sin auto-detección.
 3. Auto-detecta respuestas donde es posible (8 campos: system_purpose, ai_technology, models_used, human_review, guardrails, security_scanning, testing, audit_trail).
 4. Guarda datos en `.licit/fria-data.json` y genera reporte en `.licit/fria-report.md`.
 

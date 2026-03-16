@@ -74,6 +74,12 @@ jobs:
       - name: Track provenance
         run: licit trace
 
+      - name: Generate FRIA (non-interactive)
+        run: licit fria --auto
+
+      - name: Generate Annex IV
+        run: licit annex-iv
+
       - name: Generate compliance report
         run: licit report --format html -o compliance-report.html
 
@@ -275,7 +281,7 @@ licit no hace llamadas de red, no requiere API keys, no envía datos a ningún s
 
 Probable causa: sin FRIA ni Annex IV, Art. 27 y Annex IV serán NON_COMPLIANT. Opciones:
 
-1. Completar el FRIA: `licit fria` (interactivo, hacer en local)
+1. Generar FRIA automáticamente: `licit fria --auto` (no-interactivo, compatible con CI/CD)
 2. Generar Annex IV: `licit annex-iv` (automático)
 3. Evaluar solo OWASP: `licit verify --framework owasp`
 
